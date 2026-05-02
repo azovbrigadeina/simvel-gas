@@ -1,0 +1,617 @@
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+  let sess = {}, grp = {}, cats = [], ans = {}, vData = [];
+
+  function openL(r) {
+    const u = prompt("Username:"), p = prompt("Password:");
+    if(u && p) {
+      Swal.showLoading();
+      google.script.run.withSuccessHandler(res => {
+        Swal.close();
+        if(res.status === "success") {
+          sess = res;
+          document.getElementById('p-land').classList.add('hidden');
+          if(res.role === "Responden") {
+            if(res.sudahIsi) {
+               Swal.fire('Info', 'Anda sudah melakukan pengisian.', 'info').then(() => location.reload());
+               return;
+            }
+            document.getElementById('p-resp').classList.remove('hidden');
+            document.getElementById('opd-name').innerText = res.nama_opd;
+            initR();
+          } else {
+            document.getElementById('sidebar').classList.remove('hidden');
+            document.getElementById('p-eval').classList.remove('hidden');
+            
+            // Tampilkan menu Pengaturan & Laporan untuk Admin dan Evaluator
+            document.getElementById('l-pengaturan').classList.remove('hidden');
+            document.getElementById('l-laporan').classList.remove('hidden');
+            document.getElementById('l-reset').classList.remove('hidden');
+            
+            if(res.role === "Admin") {
+              document.getElementById('sidebar-title').innerText = "ADMIN";
+              document.getElementById('l-user').classList.remove('hidden');
+            }
+            loadStats();
+          }
+        } else Swal.fire('Error', res.message, 'error');
+      }).prosesLogin(u, p);
+    }
+  }
+
+  let parentCat = {};
+
+  function initR() {
+    Swal.showLoading();
+    grp = {}; cats = []; parentCat = {};
+    google.script.run.withSuccessHandler(data => {
+      Swal.close();
+      data.forEach(r => {
+        let ut = r[1] ? r[1].trim() : "Lainnya";
+        let sub = r[2] ? r[2].trim() : "Umum";
+        let key = ut + "|||" + sub;
+
+        if(!grp[key]) { 
+          grp[key] = []; 
+          cats.push(key); 
+          parentCat[key] = { utama: ut, subkat: sub };
+        }
+        grp[key].push(r);
+      });
+      showS(0);
+    }).getPertanyaan(sess.nama_opd);
+  }
+
+  function showS(idx) {
+    if (idx < 0 || idx >= cats.length) return;
+    const key = cats[idx], qs = grp[key], cont = document.getElementById('f-cont');
+    const katInfo = parentCat[key];
+    
+    let h = `
+      <div class="p-3 mb-4 bg-primary text-white rounded shadow-sm text-center">
+        <h4 class="fw-bold mb-1 text-uppercase">${katInfo.utama}</h4>
+        <div class="badge bg-light text-primary fs-6 px-3 py-2 mt-1 shadow-sm">
+          Sub: ${katInfo.subkat}
+        </div>
+      </div>`;
+    
+    qs.forEach(q => {
+      const s = ans[q[0]] || {id: q[0], skala:"", link:"", pilihan_teks: "", nama_dokumen: ""};
+      let weights = q[8] ? q[8].toString().split('|') : [0,0,0,0,0];
+      const labels = ['A', 'B', 'C', 'D', 'E'];
+
+      let radioHtml = `<div class="mt-2">`;
+      labels.forEach((lab, i) => {
+        let bbt = weights[i] ? weights[i].trim() : "0";
+        let inputId = `q_${q[0]}_${lab}`;
+        let isChecked = s.pilihan_teks === lab ? 'checked' : '';
+        radioHtml += `
+          <div class="form-check mb-2 p-2 border rounded-3 bg-light bg-opacity-50">
+            <input class="form-check-input ms-1" type="radio" name="radio_${q[0]}" 
+              id="${inputId}" value="${bbt}" data-teks="${lab}" 
+              onchange="savRadio('${q[0]}', this)" ${isChecked}>
+            <label class="form-check-label ms-2" for="${inputId}">
+              <strong>${lab}.</strong> <span class="text-muted small ms-2">(Bobot: ${bbt})</span>
+            </label>
+          </div>`;
+      });
+      radioHtml += `</div>`;
+
+      h += `
+      <div class="q-card" id="q-card-${q[0]}">
+        <h5 class="fw-bold mb-3">${q[3]} <span class="text-danger">*</span></h5> 
+        <div class="deskripsi-box mb-4">${(q[4]||'').replace(/\n/g,'<br>')}</div> 
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="small fw-bold text-muted mb-2">Pilih Jawaban: <span class="text-danger">*</span></label>
+            ${radioHtml}
+          </div>
+          <div class="col-md-6">
+            <label class="small fw-bold text-muted mb-2">Link Bukti Dukung (Google Drive): <span class="text-danger">*</span></label>
+            <textarea id="link-${q[0]}" class="form-control border-primary ${s.link && !/^https:\/\/(drive|docs)\.google\.com\/.*$/.test(s.link) ? 'is-invalid' : (s.link ? 'is-valid' : '')}" rows="2" oninput="savLinkVal('${q[0]}',this)" placeholder="https://drive.google.com/...">${s.link}</textarea>
+            <div class="invalid-feedback">Link harus berasal dari Google Drive (drive.google.com atau docs.google.com)</div>
+            <div class="valid-feedback">Link valid!</div>
+            
+            <label class="small fw-bold text-muted mb-2 mt-3">Nama Dokumen Pendukung: <span class="text-danger">*</span></label>
+            <input type="text" id="doc-${q[0]}" class="form-control border-primary" value="${s.nama_dokumen || ''}" oninput="savDocName('${q[0]}',this)" placeholder="Contoh: SK Tim Pelaksana, Laporan Kegiatan, dsb">
+            
+            <div class="mt-3 small text-secondary"><i class="bi bi-info-circle"></i> Pastikan akses link disetel ke "Siapa saja yang memiliki link"</div>
+          </div>
+        </div>
+      </div>`;
+    });
+
+    h += `
+    <div class="d-flex justify-content-between pb-5 mt-4">
+      <button class="btn btn-secondary px-4" onclick="showS(${idx-1})" ${idx===0?'disabled':''}>KEMBALI</button>
+      <button class="btn btn-primary px-5 fw-bold" onclick="${idx<cats.length-1?`showS(${idx+1})`:`finS()`}">
+        ${idx<cats.length-1?'LANJUT':'KIRIM JAWABAN'}
+      </button>
+    </div>`;
+    cont.innerHTML = h; window.scrollTo(0,0);
+  }
+
+  function savRadio(id, el) {
+    if(!ans[id]) ans[id] = {id: id, skala: "", link: "", pilihan_teks: ""};
+    ans[id].skala = el.value; 
+    ans[id].pilihan_teks = el.getAttribute('data-teks');
+  }
+
+  function savDocName(id, el) {
+    if(!ans[id]) ans[id] = {id: id, skala: "", link: "", pilihan_teks: "", nama_dokumen: ""};
+    ans[id].nama_dokumen = el.value.trim();
+  }
+
+  function savLinkVal(id, el) {
+    const val = el.value.trim();
+    const drvRegex = /^https:\/\/(drive|docs)\.google\.com\/.*$/;
+    
+    if(!ans[id]) ans[id] = {id:id, skala:"", link:"", pilihan_teks: "", nama_dokumen: ""};
+    ans[id].link = val;
+    
+    if(val === "") {
+      el.classList.remove('is-valid', 'is-invalid');
+    } else if(drvRegex.test(val)) {
+      el.classList.remove('is-invalid');
+      el.classList.add('is-valid');
+    } else {
+      el.classList.remove('is-valid');
+      el.classList.add('is-invalid');
+    }
+  }
+  
+  function finS() { 
+    // Validation: Check all questions in grp
+    let missing = [];
+    const drvRegex = /^https:\/\/(drive|docs)\.google\.com\/.*$/;
+    
+    Object.keys(grp).forEach(catKey => {
+      grp[catKey].forEach(q => {
+        const qId = q[0];
+        const a = ans[qId];
+        const pertanyaanShort = q[3].substring(0, 50) + "...";
+        
+        if(!a || !a.pilihan_teks) {
+          missing.push(`- Pilihan jawaban pada soal: "${pertanyaanShort}" belum dipilih.`);
+        }
+        if(!a || !a.link || a.link.trim() === "") {
+          missing.push(`- Link bukti dukung pada soal: "${pertanyaanShort}" belum diisi.`);
+        } else if(!drvRegex.test(a.link.trim())) {
+          missing.push(`- Link pada soal: "${pertanyaanShort}" bukan link Google Drive yang valid.`);
+        }
+        if(!a || !a.nama_dokumen || a.nama_dokumen.trim() === "") {
+          missing.push(`- Nama dokumen pendukung pada soal: "${pertanyaanShort}" belum diisi.`);
+        }
+      });
+    });
+    
+    if(missing.length > 0) {
+      Swal.fire({
+        title: 'Lengkapi Data!',
+        html: `<div class="text-start small" style="max-height: 300px; overflow-y: auto;">
+                <p class="fw-bold text-danger">Masih terdapat data yang belum lengkap atau tidak valid:</p>
+                ${missing.join('<br>')}
+               </div>`,
+        icon: 'warning'
+      });
+      return;
+    }
+
+    Swal.fire({title:'Kirim Sekarang?', text:'Pastikan semua data sudah benar.', icon:'question', showCancelButton:true}).then(r => {
+      if(r.isConfirmed) {
+        Swal.showLoading();
+        google.script.run.withSuccessHandler(() => {
+          Swal.fire('Berhasil', 'Seluruh data Anda telah berhasil terkirim. Terima kasih.', 'success').then(() => location.reload());
+        }).simpanSemuaJawaban({opd: sess.nama_opd, jawaban: Object.values(ans)});
+      }
+    });
+  }
+
+  function showV(v) {
+    ['dash','soal','val','user','laporan','pengaturan','reset'].forEach(i => {
+      const vEl = document.getElementById('v-'+i);
+      const lEl = document.getElementById('l-'+i);
+      if(vEl) vEl.classList.add('hidden');
+      if(lEl) lEl.classList.remove('active');
+    });
+    document.getElementById('v-'+v).classList.remove('hidden');
+    document.getElementById('l-'+v).classList.add('active');
+    
+    if(v === 'dash') loadStats();
+    if(v === 'soal') loadSoal();
+    if(v === 'val') loadSubKat();
+    if(v === 'user') loadUsers();
+    if(v === 'laporan') loadLaporan();
+    if(v === 'pengaturan') loadPengaturan();
+    if(v === 'reset') loadResetMenu();
+  }
+
+  // Pengaturan Faktor Umum
+  function loadPengaturan() {
+    Swal.showLoading();
+    google.script.run.withSuccessHandler(data => {
+      Swal.close();
+      document.getElementById('fu_1_name').value = data.fu_1_name;
+      document.getElementById('fu_1_val').value = data.fu_1_val;
+      document.getElementById('fu_2_name').value = data.fu_2_name;
+      document.getElementById('fu_2_val').value = data.fu_2_val;
+      document.getElementById('fu_3_name').value = data.fu_3_name;
+      document.getElementById('fu_3_val').value = data.fu_3_val;
+      document.getElementById('excluded_bonus').value = data.excluded_bonus || '';
+    }).getFaktorUmum();
+  }
+  
+  function simpanPengaturanUmum() {
+    const data = {
+      fu_1_name: document.getElementById('fu_1_name').value,
+      fu_1_val: document.getElementById('fu_1_val').value,
+      fu_2_name: document.getElementById('fu_2_name').value,
+      fu_2_val: document.getElementById('fu_2_val').value,
+      fu_3_name: document.getElementById('fu_3_name').value,
+      fu_3_val: document.getElementById('fu_3_val').value,
+      excluded_bonus: document.getElementById('excluded_bonus').value,
+    };
+    Swal.showLoading();
+    google.script.run.withSuccessHandler(res => Swal.fire('Sukses', res, 'success'))
+    .saveFaktorUmum(data);
+  }
+
+  // Laporan Penilaian
+  let dataLaporan = [];
+  function loadLaporan() {
+    Swal.showLoading();
+    google.script.run.withSuccessHandler(res => {
+      Swal.close();
+      dataLaporan = res;
+      
+      let headHtml = `<tr>
+        <th>Urusan</th>
+        <th>Nilai Faktor Umum</th>
+        <th>Nilai Faktor Teknis</th>
+        <th class="bg-primary text-white">TOTAL NILAI</th>
+        <th>Intensitas & Tipe</th>
+        <th>Aksi</th>
+      </tr>`;
+      document.getElementById('t-lap-head').innerHTML = headHtml;
+      
+      let bodyHtml = '';
+      res.forEach((d, index) => {
+        let bonusBadge = d.bonus_applied ? '<br><span class="badge bg-warning text-dark mt-1" style="font-size: 0.7rem;"><i class="bi bi-stars"></i> Bonus 1.1x Applied</span>' : '';
+        
+        let typeColor = d.tipe.includes("Tipe A") ? "bg-danger" : 
+                        d.tipe.includes("Tipe B") ? "bg-primary" : 
+                        d.tipe.includes("Tipe C") ? "bg-info text-dark" : "bg-secondary";
+
+        bodyHtml += `<tr>
+          <td class="text-start fw-bold">${d.urusan}</td>
+          <td>${d.faktor_umum}</td>
+          <td>${d.faktor_teknis}</td>
+          <td class="fw-bold fs-5 text-primary">${d.total_akhir}${bonusBadge}</td>
+          <td>
+            <div class="fw-bold">${d.intensitas}</div>
+            <span class="badge ${typeColor}">${d.tipe}</span>
+          </td>
+          <td><button class="btn btn-sm btn-outline-info" onclick="lihatOpdLaporan(${index})"><i class="bi bi-eye"></i> Lihat OPD</button></td>
+        </tr>`;
+      });
+      document.getElementById('t-lap-body').innerHTML = bodyHtml;
+      
+    }).getLaporanNilai();
+  }
+  
+  function lihatOpdLaporan(index) {
+    const data = dataLaporan[index];
+    Swal.fire({
+      title: 'Informasi Hasil Penilaian',
+      html: `
+        <div class="text-start">
+          <p>Urusan: <b>${data.urusan}</b></p>
+          <p>Total Skor: <b class="text-primary fs-4">${data.total_akhir}</b></p>
+          <hr>
+          <p><b>Rekomendasi Wadah:</b></p>
+          <ul>
+            <li>Intensitas: <span class="badge bg-secondary">${data.intensitas}</span></li>
+            <li>Wadah: <span class="badge bg-success">${data.tipe}</span></li>
+          </ul>
+          <hr>
+          <p>Milik OPD:<br><h5 class="text-primary">${data.opd}</h5></p>
+        </div>
+      `,
+      icon: 'info'
+    });
+  }
+
+  // Reset Data Script
+  function loadResetMenu() {
+    Swal.showLoading();
+    google.script.run.withSuccessHandler(opds => {
+      Swal.close();
+      let h = '<option value="">-- Pilih OPD --</option>';
+      opds.forEach(o => h += `<option value="${o}">${o}</option>`);
+      document.getElementById('sel-reset-opd').innerHTML = h;
+    }).getOpdSudahIsi();
+  }
+
+  function resetValidasiAction() {
+    const opd = document.getElementById('sel-reset-opd').value;
+    if(!opd) return Swal.fire('Info', 'Pilih OPD terlebih dahulu', 'info');
+    
+    Swal.fire({
+      title: 'Hapus Validasi?',
+      text: `Seluruh skor validasi untuk ${opd} akan dihapus. Jawaban responden tetap aman.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ffc107',
+      confirmButtonText: 'Ya, Hapus Validasi'
+    }).then(res => {
+      if(res.isConfirmed) {
+        Swal.showLoading();
+        google.script.run.withSuccessHandler(msg => {
+          Swal.fire('Berhasil', msg, 'success');
+          loadResetMenu();
+        }).resetValidasiOPD(opd);
+      }
+    });
+  }
+
+  function resetJawabanAction() {
+    const opd = document.getElementById('sel-reset-opd').value;
+    if(!opd) return Swal.fire('Info', 'Pilih OPD terlebih dahulu', 'info');
+    
+    Swal.fire({
+      title: 'Hapus Seluruh Jawaban?',
+      text: `PERINGATAN: Seluruh data jawaban dan validasi untuk ${opd} akan dihapus PERMANEN. Responden bisa mengisi ulang kuesioner dari awal.`,
+      icon: 'error',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      confirmButtonText: 'Ya, Reset Total'
+    }).then(res => {
+      if(res.isConfirmed) {
+        Swal.showLoading();
+        google.script.run.withSuccessHandler(msg => {
+          Swal.fire('Berhasil', msg, 'success');
+          loadResetMenu();
+        }).resetJawabanOPD(opd);
+      }
+    });
+  }
+
+  // Kelola Soal
+  function loadSoal() {
+    Swal.showLoading();
+    google.script.run.withSuccessHandler(data => {
+      Swal.close();
+      document.getElementById('t-soal-body').innerHTML = data.map(q => `
+        <tr>
+          <td>${q[0]}</td>
+          <td><input type="text" class="form-control form-control-sm" value="${q[1]}" onchange="google.script.run.updateSoal('${q[0]}', 1, this.value)"></td>
+          <td><input type="text" class="form-control form-control-sm" value="${q[2]}" onchange="google.script.run.updateSoal('${q[0]}', 2, this.value)"></td>
+          <td><textarea class="form-control form-control-sm" onchange="google.script.run.updateSoal('${q[0]}', 3, this.value)">${q[3]}</textarea></td>
+          <td><input type="text" class="form-control form-control-sm" value="${q[8]||''}" onchange="google.script.run.updateSoal('${q[0]}', 8, this.value)"></td>
+          <td><input type="text" class="form-control form-control-sm" value="${q[9]||''}" onchange="google.script.run.updateSoal('${q[0]}', 9, this.value)"></td>
+        </tr>`).join('');
+    }).getPertanyaan();
+  }
+
+  // Validasi by Sub Kategori
+  function loadSubKat() {
+    Swal.showLoading();
+    google.script.run.withSuccessHandler(res => {
+      Swal.close();
+      let h = '';
+      res.forEach(s => h += `<option value="${s}">`);
+      document.getElementById('list-subkat').innerHTML = h;
+    }).getSubKategoriList();
+  }
+
+  function muatValidasi() {
+    const subKat = document.getElementById('sel-subkat').value;
+    if(!subKat) return;
+    Swal.showLoading();
+    google.script.run.withSuccessHandler(data => {
+      Swal.close();
+      vData = data; 
+      document.getElementById('btn-save-val').classList.remove('hidden');
+      
+      let html = '';
+      data.forEach((soal, i) => {
+        let weights = soal.bobot_str ? soal.bobot_str.split('|') : [0,0,0,0,0];
+        const labels = ['A', 'B', 'C', 'D', 'E'];
+
+        html += `<div class="q-card mb-4 border-primary">
+          <h5 class="fw-bold mb-3">${soal.pertanyaan}</h5>`;
+          
+        if(soal.jawaban_opd.length === 0) {
+           html += `<p class="text-muted small">Belum ada OPD yang menjawab soal ini.</p>`;
+        } else {
+          soal.jawaban_opd.forEach((ans, j) => {
+            
+            let selectOptions = `<option value="">-- Pilih Skor --</option>`;
+            labels.forEach((lab, k) => {
+              let bbt = weights[k] ? weights[k].trim() : "0";
+              let isSelected = (ans.skala_evaluator.toString() === bbt) ? 'selected' : '';
+              selectOptions += `<option value="${bbt}" ${isSelected}>${lab} (Bobot: ${bbt})</option>`;
+            });
+
+            html += `
+            <div class="border rounded p-3 mb-2 bg-light">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-bold text-primary"><i class="bi bi-building"></i> ${ans.opd}</span>
+                <div>
+                  <button class="btn btn-sm btn-outline-success me-1" onclick="samakanSkor(${i}, ${j}, '${ans.skala_responden}')" title="Samakan dengan Responden"><i class="bi bi-arrow-down-circle"></i> Samakan Skor</button>
+                  <a href="${ans.link}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-link"></i> Bukti</a>
+                </div>
+              </div>
+              <div class="mb-2">
+                <span class="badge bg-secondary">Pilihan Responden: ${ans.pilihan_responden}</span>
+                <span class="badge bg-info text-dark ms-1">Skor Responden: ${ans.skala_responden}</span>
+                <br>
+                <div class="mt-2 small"><b>Dokumen:</b> <span class="text-success">${ans.nama_dokumen}</span></div>
+              </div>
+              <div class="row g-2">
+                <div class="col-md-3">
+                  <label class="small fw-bold">Skor Evaluator</label>
+                  <select id="sel-eval-${i}-${j}" class="form-select form-select-sm border-success fw-bold" onchange="vData[${i}].jawaban_opd[${j}].skala_evaluator=this.value">
+                    ${selectOptions}
+                  </select>
+                </div>
+                <div class="col-md-9">
+                  <label class="small fw-bold">Catatan Evaluator</label>
+                  <input type="text" class="form-control form-control-sm" value="${ans.catatan||''}" oninput="vData[${i}].jawaban_opd[${j}].catatan=this.value">
+                </div>
+              </div>
+            </div>`;
+          });
+        }
+        html += `</div>`;
+      });
+      document.getElementById('val-list').innerHTML = html;
+    }).getJawabanBySubKategori(subKat);
+  }
+
+  function samakanSkor(i, j, skor) {
+    vData[i].jawaban_opd[j].skala_evaluator = skor;
+    const sel = document.getElementById(`sel-eval-${i}-${j}`);
+    if (sel) {
+      sel.value = skor;
+      sel.classList.add('bg-success', 'text-white');
+      setTimeout(() => sel.classList.remove('bg-success', 'text-white'), 400);
+    }
+  }
+
+  function simpanVal() {
+    if(vData.length === 0) return;
+    
+    let itemsToSave = [];
+    vData.forEach(soal => {
+      soal.jawaban_opd.forEach(ans => {
+        itemsToSave.push({
+          opd: ans.opd,
+          id_soal: soal.id_soal,
+          skala_responden: ans.skala_responden,
+          skala_evaluator: ans.skala_evaluator,
+          catatan: ans.catatan
+        });
+      });
+    });
+    
+    Swal.showLoading();
+    google.script.run.withSuccessHandler(() => Swal.fire('Berhasil','Data verifikasi tersimpan','success'))
+    .simpanVerifikasi({ items: itemsToSave });
+  }
+
+  function loadStats() { 
+    google.script.run.withSuccessHandler(s => { 
+      document.getElementById('s-tot').innerText = s.total; 
+      document.getElementById('s-sud').innerText = s.sudah; 
+      document.getElementById('s-ta').innerText = s.tipeA;
+      document.getElementById('s-tb').innerText = s.tipeB;
+      document.getElementById('s-tc').innerText = s.tipeC;
+      document.getElementById('s-tl').innerText = s.tipeLain;
+    }).getStats(); 
+  }
+
+  // Kelola User Script
+  let usersData = [];
+  let listMasterOPD = [];
+  function loadUsers() {
+    Swal.showLoading();
+    if (listMasterOPD.length === 0) {
+      google.script.run.withSuccessHandler(opdList => {
+        listMasterOPD = opdList;
+        fetchUsers();
+      }).getMasterOPDList();
+    } else {
+      fetchUsers();
+    }
+  }
+  
+  function fetchUsers() {
+    google.script.run.withSuccessHandler(data => {
+      usersData = data;
+      Swal.close();
+      document.getElementById('t-user-body').innerHTML = data.map(u => `
+        <tr>
+          <td>${u[0]}</td>
+          <td>${u[1]}</td>
+          <td><span class="badge ${u[2]==='Admin'?'bg-danger':u[2]==='Evaluator'?'bg-primary':'bg-success'}">${u[2]}</span></td>
+          <td>${u[3] || '-'}</td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-primary" onclick="formUser('${u[0]}')"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-sm btn-outline-danger" onclick="hapusUserAction('${u[0]}')"><i class="bi bi-trash"></i></button>
+          </td>
+        </tr>`).join('');
+    }).getUsersData();
+  }
+
+  function formUser(oldU = '') {
+    let u = { username: '', password: '', role: 'Responden', opd: '' };
+    if(oldU) {
+      const found = usersData.find(x => x[0] === oldU);
+      if(found) u = { username: found[0], password: found[1], role: found[2], opd: found[3] };
+    }
+    
+    let opdOptions = `<option value="-">`;
+    listMasterOPD.forEach(opd => {
+      opdOptions += `<option value="${opd}">`;
+    });
+
+    Swal.fire({
+      title: oldU ? 'Edit User' : 'Tambah User',
+      html: `
+        <div class="text-start">
+          <div class="mb-2"><label class="form-label small fw-bold">Username</label>
+            <input id="swal-u" class="form-control" value="${u.username}"></div>
+          <div class="mb-2"><label class="form-label small fw-bold">Password</label>
+            <input id="swal-p" class="form-control" value="${u.password}"></div>
+          <div class="mb-2"><label class="form-label small fw-bold">Role</label>
+            <select id="swal-r" class="form-select">
+              <option value="Responden" ${u.role==='Responden'?'selected':''}>Responden</option>
+              <option value="Evaluator" ${u.role==='Evaluator'?'selected':''}>Evaluator</option>
+              <option value="Admin" ${u.role==='Admin'?'selected':''}>Admin</option>
+            </select></div>
+          <div class="mb-2"><label class="form-label small fw-bold">Nama OPD</label>
+            <input list="opd-list" id="swal-o" class="form-control" value="${u.opd}" placeholder="Ketik inisial OPD...">
+            <datalist id="opd-list">
+              ${opdOptions}
+            </datalist>
+          </div>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Simpan',
+      preConfirm: () => {
+        return [
+          document.getElementById('swal-u').value,
+          document.getElementById('swal-p').value,
+          document.getElementById('swal-r').value,
+          document.getElementById('swal-o').value || '-'
+        ]
+      }
+    }).then(res => {
+      if(res.isConfirmed) {
+        if(!res.value[0] || !res.value[1]) return Swal.fire('Error', 'Username & Password wajib diisi!', 'error');
+        Swal.showLoading();
+        if(oldU) {
+          google.script.run.withSuccessHandler(r => r.status==='success'? (Swal.fire('Sukses',r.message,'success'), loadUsers()) : Swal.fire('Error',r.message,'error'))
+          .updateUser(oldU, res.value);
+        } else {
+          google.script.run.withSuccessHandler(r => r.status==='success'? (Swal.fire('Sukses',r.message,'success'), loadUsers()) : Swal.fire('Error',r.message,'error'))
+          .tambahUser(res.value);
+        }
+      }
+    });
+  }
+
+  function hapusUserAction(uname) {
+    if(uname === sess.username) return Swal.fire('Error', 'Tidak dapat menghapus diri sendiri!', 'error');
+    Swal.fire({title: 'Hapus User?', text: "Tindakan ini tidak bisa dibatalkan!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33'})
+    .then(r => {
+      if(r.isConfirmed) {
+        Swal.showLoading();
+        google.script.run.withSuccessHandler(res => res.status==='success'? (Swal.fire('Terhapus',res.message,'success'), loadUsers()) : Swal.fire('Error',res.message,'error'))
+        .hapusUser(uname);
+      }
+    });
+  }
+</script>
