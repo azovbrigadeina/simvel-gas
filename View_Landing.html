@@ -1,10 +1,49 @@
-<div id="p-land" style="min-height: 100vh; background: #ffaf2e; display: flex; align-items: center; color: white; text-align: center;">
-  <div class="container">
-    <img src="https://i.ibb.co.com/7dW9YHGM/logo-Simvel.png" alt="Logo SimVel" style="max-width: 280px; margin-bottom: 15px;">
-    <p class="lead mb-5 opacity-75">Bagian Organisasi Setda Kab. Muaro Jambi</p>
-    <div class="row justify-content-center g-4">
-      <div class="col-md-5" onclick="openL('Responden')"><div class="p-5 border rounded-4 bg-white bg-opacity-50 shadow" style="cursor:pointer"><h3>📝 RESPONDEN</h3></div></div>
-      <div class="col-md-5" onclick="openL('Evaluator')"><div class="p-5 border rounded-4 bg-white bg-opacity-50 shadow" style="cursor:pointer"><h3>🛡️ EVALUATOR</h3></div></div>
+<div id="p-land" style="min-height: 100vh; background: var(--accent); display: flex; align-items: center; color: white; text-align: center;">
+  <div class="container fade-in">
+    <!-- Role Selection -->
+    <div id="role-selection">
+      <img src="https://i.ibb.co.com/7dW9YHGM/logo-Simvel.png" alt="Logo SimVel" style="max-width: 280px; margin-bottom: 15px;">
+      <p class="lead mb-5 opacity-75">Bagian Organisasi Setda Kab. Muaro Jambi</p>
+      <div class="row justify-content-center g-4">
+        <div class="col-md-5" onclick="showLoginForm('Responden')">
+          <div class="p-5 border rounded-4 bg-white bg-opacity-25 shadow-sm border-white border-opacity-25" style="cursor:pointer; transition: 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.4)'" onmouseout="this.style.background='rgba(255,255,255,0.25)'">
+            <h3 class="fw-bold"><i class="bi bi-pencil-square"></i> RESPONDEN</h3>
+          </div>
+        </div>
+        <div class="col-md-5" onclick="showLoginForm('Evaluator')">
+          <div class="p-5 border rounded-4 bg-white bg-opacity-25 shadow-sm border-white border-opacity-25" style="cursor:pointer; transition: 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.4)'" onmouseout="this.style.background='rgba(255,255,255,0.25)'">
+            <h3 class="fw-bold"><i class="bi bi-shield-lock"></i> EVALUATOR</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Login Form -->
+    <div id="login-form-container" class="hidden">
+      <div class="login-card fade-in">
+        <img src="https://i.ibb.co.com/7dW9YHGM/logo-Simvel.png" alt="Logo SimVel" style="max-width: 180px; margin-bottom: 30px;">
+        <h4 class="text-dark fw-bold mb-1" id="login-title">LOGIN USER</h4>
+        <p class="text-muted small mb-4" id="login-subtitle">Silakan masukkan akun Anda</p>
+        
+        <div class="login-input-group">
+          <i class="bi bi-person-fill"></i>
+          <input type="text" id="login-username" class="form-control" placeholder="Username" autocomplete="username">
+        </div>
+        
+        <div class="login-input-group">
+          <i class="bi bi-lock-fill"></i>
+          <input type="password" id="login-password" class="form-control" placeholder="Password" autocomplete="current-password">
+          <i class="bi bi-eye-fill" id="toggle-password" style="left: auto; right: 15px; cursor: pointer;" onclick="togglePasswordVisibility()"></i>
+        </div>
+        
+        <button class="btn btn-primary w-100 btn-login mb-3" id="btn-submit-login" onclick="handleLoginSubmit()">
+          MASUK <i class="bi bi-box-arrow-in-right ms-2"></i>
+        </button>
+        
+        <a href="#" class="btn-back-login" onclick="hideLoginForm()">
+          <i class="bi bi-arrow-left"></i> Kembali ke Pilihan Peran
+        </a>
+      </div>
     </div>
   </div>
 </div>

@@ -2,42 +2,87 @@
 <script>
   let sess = {}, grp = {}, cats = [], ans = {}, vData = [];
 
-  function openL(r) {
-    const u = prompt("Username:"), p = prompt("Password:");
-    if(u && p) {
-      Swal.showLoading();
-      google.script.run.withSuccessHandler(res => {
-        Swal.close();
-        if(res.status === "success") {
-          sess = res;
-          document.getElementById('p-land').classList.add('hidden');
-          if(res.role === "Responden") {
-            if(res.sudahIsi) {
-               Swal.fire('Info', 'Anda sudah melakukan pengisian.', 'info').then(() => location.reload());
-               return;
-            }
-            document.getElementById('p-resp').classList.remove('hidden');
-            document.getElementById('opd-name').innerText = res.nama_opd;
-            initR();
-          } else {
-            document.getElementById('sidebar').classList.remove('hidden');
-            document.getElementById('p-eval').classList.remove('hidden');
-            
-            // Tampilkan menu Pengaturan & Laporan untuk Admin dan Evaluator
-            document.getElementById('l-pengaturan').classList.remove('hidden');
-            document.getElementById('l-laporan').classList.remove('hidden');
-            document.getElementById('l-reset').classList.remove('hidden');
-            
-            if(res.role === "Admin") {
-              document.getElementById('sidebar-title').innerText = "ADMIN";
-              document.getElementById('l-user').classList.remove('hidden');
-            }
-            loadStats();
-          }
-        } else Swal.fire('Error', res.message, 'error');
-      }).prosesLogin(u, p);
+  let currentRole = "";
+
+  function showLoginForm(role) {
+    currentRole = role;
+    document.getElementById('role-selection').classList.add('hidden');
+    document.getElementById('login-form-container').classList.remove('hidden');
+    document.getElementById('login-title').innerText = "LOGIN " + role.toUpperCase();
+    document.getElementById('login-username').focus();
+    
+    // Reset form
+    document.getElementById('login-username').value = "";
+    document.getElementById('login-password').value = "";
+  }
+
+  function hideLoginForm() {
+    document.getElementById('role-selection').classList.remove('hidden');
+    document.getElementById('login-form-container').classList.add('hidden');
+  }
+
+  function togglePasswordVisibility() {
+    const pInput = document.getElementById('login-password');
+    const pIcon = document.getElementById('toggle-password');
+    if (pInput.type === "password") {
+      pInput.type = "text";
+      pIcon.classList.replace('bi-eye-fill', 'bi-eye-slash-fill');
+    } else {
+      pInput.type = "password";
+      pIcon.classList.replace('bi-eye-slash-fill', 'bi-eye-fill');
     }
   }
+
+  function handleLoginSubmit() {
+    const u = document.getElementById('login-username').value;
+    const p = document.getElementById('login-password').value;
+    
+    if(!u || !p) {
+      Swal.fire('Info', 'Username dan Password harus diisi!', 'info');
+      return;
+    }
+
+    Swal.showLoading();
+    google.script.run.withSuccessHandler(res => {
+      Swal.close();
+      if(res.status === "success") {
+        sess = res;
+        document.getElementById('p-land').classList.add('hidden');
+        if(res.role === "Responden") {
+          if(res.sudahIsi) {
+             Swal.fire('Info', 'Anda sudah melakukan pengisian.', 'info').then(() => location.reload());
+             return;
+          }
+          document.getElementById('p-resp').classList.remove('hidden');
+          document.getElementById('opd-name').innerText = res.nama_opd;
+          initR();
+        } else {
+          document.getElementById('sidebar').classList.remove('hidden');
+          document.getElementById('p-eval').classList.remove('hidden');
+          
+          document.getElementById('l-pengaturan').classList.remove('hidden');
+          document.getElementById('l-laporan').classList.remove('hidden');
+          document.getElementById('l-reset').classList.remove('hidden');
+          
+          if(res.role === "Admin") {
+            document.getElementById('sidebar-title').innerText = "ADMIN";
+            document.getElementById('l-user').classList.remove('hidden');
+          }
+          loadStats();
+        }
+      } else Swal.fire('Error', res.message, 'error');
+    }).prosesLogin(u, p);
+  }
+
+  // Handle Enter Key
+  document.addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') {
+      const loginContainer = document.getElementById('login-form-container');
+      if (loginContainer && !loginContainer.classList.contains('hidden')) {
+        handleLoginSubmit();
+      }
+    }
+  });
 
   let parentCat = {};
 
