@@ -16,15 +16,31 @@
   <div id="v-dash">
     <div class="row g-4 mb-4">
       <div class="col-md-6"><div class="card p-4 border-0 shadow-sm bg-primary text-white text-center"><h6>Total Responden (OPD)</h6><h2 id="s-tot" class="fw-bold">0</h2></div></div>
-      <div class="col-md-6"><div class="card p-4 border-0 shadow-sm bg-success text-white text-center"><h6>OPD Sudah Input</h6><h2 id="s-sud" class="fw-bold">0</h2></div></div>
+      <div class="col-md-6"><div class="card p-4 border-0 shadow-sm bg-success text-white text-center"><h6>Urusan Sudah Nilai</h6><h2 id="s-urusan-sudah" class="fw-bold">0</h2></div></div>
     </div>
     
-    <h5 class="fw-bold mb-3 text-muted">Statistik Hasil Penilaian (Tipe PD)</h5>
-    <div class="row g-3">
-      <div class="col-md-3"><div class="card p-3 border-0 shadow-sm bg-danger text-white text-center"><h6>Tipe A</h6><h2 id="s-ta">0</h2></div></div>
-      <div class="col-md-3"><div class="card p-3 border-0 shadow-sm bg-primary text-white text-center"><h6>Tipe B</h6><h2 id="s-tb">0</h2></div></div>
-      <div class="col-md-3"><div class="card p-3 border-0 shadow-sm bg-info text-dark text-center"><h6>Tipe C</h6><h2 id="s-tc">0</h2></div></div>
-      <div class="col-md-3"><div class="card p-3 border-0 shadow-sm bg-secondary text-white text-center"><h6>Lainnya</h6><h2 id="s-tl">0</h2></div></div>
+    <div class="row mb-4">
+      <div class="col-12">
+        <h5 class="fw-bold mb-3 text-muted">Statistik Hasil Penilaian (Tipe PD)</h5>
+        <div class="row g-3">
+          <div class="col-md-3"><div class="card p-3 border-0 shadow-sm bg-danger text-white text-center"><h6>Tipe A</h6><h2 id="s-ta">0</h2></div></div>
+          <div class="col-md-3"><div class="card p-3 border-0 shadow-sm bg-primary text-white text-center"><h6>Tipe B</h6><h2 id="s-tb">0</h2></div></div>
+          <div class="col-md-3"><div class="card p-3 border-0 shadow-sm bg-info text-dark text-center"><h6>Tipe C</h6><h2 id="s-tc">0</h2></div></div>
+          <div class="col-md-3"><div class="card p-3 border-0 shadow-sm bg-secondary text-white text-center"><h6>Lainnya</h6><h2 id="s-tl">0</h2></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6">
+        <h5 class="fw-bold mb-3 text-muted">OPD Sudah Input Kuesioner</h5>
+        <div class="table-responsive bg-white p-3 rounded shadow-sm" style="max-height: 300px; overflow-y: auto;">
+          <table class="table table-sm table-hover align-middle">
+            <thead class="table-light"><tr><th width="50">No</th><th>Nama OPD</th></tr></thead>
+            <tbody id="t-opd-sudah-body"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -40,17 +56,34 @@
 
   <div id="v-val" class="hidden">
     <h4 class="fw-bold mb-4">Validasi Nilai (Berdasarkan Sub Kategori)</h4>
-    <div class="card p-3 mb-4 border-0 shadow-sm">
-      <div class="row g-2">
-        <div class="col-md-9">
-          <input list="list-subkat" id="sel-subkat" class="form-control border-primary" placeholder="Ketik atau pilih Sub Kategori...">
-          <datalist id="list-subkat"></datalist>
-        </div>
-        <div class="col-md-3"><button class="btn btn-primary w-100 fw-bold" onclick="muatValidasi()">BUKA DATA</button></div>
+    
+    <!-- View 1: List of Sub Kategori -->
+    <div id="val-subkat-view">
+      <div class="table-responsive bg-white p-3 rounded shadow-sm">
+        <table class="table table-sm align-middle table-hover text-start">
+          <thead class="table-light">
+            <tr>
+              <th>Sub Kategori</th>
+              <th>Status Validasi</th>
+              <th class="text-end">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="val-subkat-list">
+            <!-- Table rows will be injected here -->
+          </tbody>
+        </table>
       </div>
     </div>
-    <div id="val-list"></div>
-    <button id="btn-save-val" class="btn btn-success w-100 fw-bold mt-3 hidden" onclick="simpanVal()">SIMPAN VALIDASI</button>
+    
+    <!-- View 2: Validation Form -->
+    <div id="val-form-view" class="hidden">
+      <div class="mb-3">
+        <button class="btn btn-outline-secondary btn-sm" onclick="kembaliKeDaftarValidasi()"><i class="bi bi-arrow-left"></i> Kembali ke Daftar</button>
+        <h5 class="fw-bold mt-3" id="val-active-subkat"></h5>
+      </div>
+      <div id="val-list"></div>
+      <button id="btn-save-val" class="btn btn-success w-100 fw-bold mt-3 hidden" onclick="simpanVal()">SIMPAN VALIDASI</button>
+    </div>
   </div>
 
   <div id="v-laporan" class="hidden">
@@ -84,6 +117,18 @@
         <label class="form-label fw-bold">Urusan yang dikecualikan dari bonus 1.1x</label>
         <textarea id="excluded_bonus" class="form-control" rows="2" placeholder="Contoh: Kesehatan, Pendidikan, Pekerjaan Umum"></textarea>
         <div class="form-text">Pisahkan dengan koma jika lebih dari satu. Nama urusan harus sesuai dengan Sub Kategori di Master Pertanyaan.</div>
+      </div>
+      <hr>
+      <h5 class="fw-bold mb-3">Pengaturan Laporan (Cetak PDF/DOC)</h5>
+      <div class="mb-3">
+        <label class="form-label fw-bold">ID Template Google Docs</label>
+        <input type="text" id="template_id" class="form-control" placeholder="Contoh: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms">
+        <div class="form-text">Pastikan template berisi tag yang valid.</div>
+      </div>
+      <div class="mb-4">
+        <label class="form-label fw-bold">ID Folder Penyimpanan (Google Drive)</label>
+        <input type="text" id="folder_id" class="form-control" placeholder="Contoh: 0BwwA4oUTeiV1TGRPeTVjaWRyZ1E">
+        <div class="form-text">Laporan yang dicetak akan tersimpan otomatis ke folder ini.</div>
       </div>
       <button class="btn btn-success w-100 fw-bold" onclick="simpanPengaturanUmum()">SIMPAN PENGATURAN</button>
     </div>

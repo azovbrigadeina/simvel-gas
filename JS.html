@@ -121,7 +121,7 @@
       </div>`;
     
     qs.forEach(q => {
-      const s = ans[q[0]] || {id: q[0], skala:"", link:"", pilihan_teks: "", nama_dokumen: ""};
+      const s = ans[q[0]] || {id: q[0], skala:"", link:"", pilihan_teks: "", nama_dokumen: "", sistem_nilai: "", sumber_data: "", penjelasan: ""};
       let weights = q[8] ? q[8].toString().split('|') : [0,0,0,0,0];
       const labels = ['A', 'B', 'C', 'D', 'E'];
 
@@ -152,13 +152,22 @@
             ${radioHtml}
           </div>
           <div class="col-md-6">
+            <label class="small fw-bold text-muted mb-2">Sistem (Nilai): <span class="text-danger">*</span></label>
+            <input type="text" id="nilai-${q[0]}" class="form-control border-primary mb-3" value="${s.sistem_nilai || ''}" oninput="savSistemNilai('${q[0]}',this)" placeholder="contoh: Nilai satuan sebenarnya misal 123 Desa">
+
+            <label class="small fw-bold text-muted mb-2">Data Dokumen Pendukung: <span class="text-danger">*</span></label>
+            <input type="text" id="doc-${q[0]}" class="form-control border-primary mb-3" value="${s.nama_dokumen || ''}" oninput="savDocName('${q[0]}',this)" placeholder="Contoh: SK Tim Pelaksana, Laporan Kegiatan, dsb">
+
             <label class="small fw-bold text-muted mb-2">Link Bukti Dukung (Google Drive): <span class="text-danger">*</span></label>
-            <textarea id="link-${q[0]}" class="form-control border-primary ${s.link && !/^https:\/\/(drive|docs)\.google\.com\/.*$/.test(s.link) ? 'is-invalid' : (s.link ? 'is-valid' : '')}" rows="2" oninput="savLinkVal('${q[0]}',this)" placeholder="https://drive.google.com/...">${s.link}</textarea>
+            <textarea id="link-${q[0]}" class="form-control border-primary mb-3 ${s.link && !/^https:\/\/(drive|docs)\.google\.com\/.*$/.test(s.link) ? 'is-invalid' : (s.link ? 'is-valid' : '')}" rows="2" oninput="savLinkVal('${q[0]}',this)" placeholder="https://drive.google.com/...">${s.link}</textarea>
             <div class="invalid-feedback">Link harus berasal dari Google Drive (drive.google.com atau docs.google.com)</div>
             <div class="valid-feedback">Link valid!</div>
             
-            <label class="small fw-bold text-muted mb-2 mt-3">Nama Dokumen Pendukung: <span class="text-danger">*</span></label>
-            <input type="text" id="doc-${q[0]}" class="form-control border-primary" value="${s.nama_dokumen || ''}" oninput="savDocName('${q[0]}',this)" placeholder="Contoh: SK Tim Pelaksana, Laporan Kegiatan, dsb">
+            <label class="small fw-bold text-muted mb-2 mt-3">Sumber Data & Tahun Data: <span class="text-danger">*</span></label>
+            <input type="text" id="sumber-${q[0]}" class="form-control border-primary mb-3" value="${s.sumber_data || ''}" oninput="savSumberData('${q[0]}',this)" placeholder="Contoh: BPS 2023, Laporan Dinas 2024">
+            
+            <label class="small fw-bold text-muted mb-2">Penjelasan: <span class="text-danger">*</span></label>
+            <textarea id="penjelasan-${q[0]}" class="form-control border-primary" rows="2" oninput="savPenjelasan('${q[0]}',this)" placeholder="Buat Narasi Singkat tentang Data Tersebut">${s.penjelasan || ''}</textarea>
             
             <div class="mt-3 small text-secondary"><i class="bi bi-info-circle"></i> Pastikan akses link disetel ke "Siapa saja yang memiliki link"</div>
           </div>
@@ -176,22 +185,41 @@
     cont.innerHTML = h; window.scrollTo(0,0);
   }
 
+  function initAnsObject(id) {
+    if(!ans[id]) ans[id] = {id: id, skala: "", link: "", pilihan_teks: "", nama_dokumen: "", sistem_nilai: "", sumber_data: "", penjelasan: ""};
+  }
+
   function savRadio(id, el) {
-    if(!ans[id]) ans[id] = {id: id, skala: "", link: "", pilihan_teks: ""};
+    initAnsObject(id);
     ans[id].skala = el.value; 
     ans[id].pilihan_teks = el.getAttribute('data-teks');
   }
 
+  function savSistemNilai(id, el) {
+    initAnsObject(id);
+    ans[id].sistem_nilai = el.value.trim();
+  }
+
   function savDocName(id, el) {
-    if(!ans[id]) ans[id] = {id: id, skala: "", link: "", pilihan_teks: "", nama_dokumen: ""};
+    initAnsObject(id);
     ans[id].nama_dokumen = el.value.trim();
+  }
+
+  function savSumberData(id, el) {
+    initAnsObject(id);
+    ans[id].sumber_data = el.value.trim();
+  }
+
+  function savPenjelasan(id, el) {
+    initAnsObject(id);
+    ans[id].penjelasan = el.value.trim();
   }
 
   function savLinkVal(id, el) {
     const val = el.value.trim();
     const drvRegex = /^https:\/\/(drive|docs)\.google\.com\/.*$/;
     
-    if(!ans[id]) ans[id] = {id:id, skala:"", link:"", pilihan_teks: "", nama_dokumen: ""};
+    initAnsObject(id);
     ans[id].link = val;
     
     if(val === "") {
@@ -219,13 +247,22 @@
         if(!a || !a.pilihan_teks) {
           missing.push(`- Pilihan jawaban pada soal: "${pertanyaanShort}" belum dipilih.`);
         }
+        if(!a || !a.sistem_nilai || a.sistem_nilai.trim() === "") {
+          missing.push(`- Sistem (Nilai) pada soal: "${pertanyaanShort}" belum diisi.`);
+        }
+        if(!a || !a.nama_dokumen || a.nama_dokumen.trim() === "") {
+          missing.push(`- Data dokumen pendukung pada soal: "${pertanyaanShort}" belum diisi.`);
+        }
         if(!a || !a.link || a.link.trim() === "") {
           missing.push(`- Link bukti dukung pada soal: "${pertanyaanShort}" belum diisi.`);
         } else if(!drvRegex.test(a.link.trim())) {
           missing.push(`- Link pada soal: "${pertanyaanShort}" bukan link Google Drive yang valid.`);
         }
-        if(!a || !a.nama_dokumen || a.nama_dokumen.trim() === "") {
-          missing.push(`- Nama dokumen pendukung pada soal: "${pertanyaanShort}" belum diisi.`);
+        if(!a || !a.sumber_data || a.sumber_data.trim() === "") {
+          missing.push(`- Sumber Data & Tahun Data pada soal: "${pertanyaanShort}" belum diisi.`);
+        }
+        if(!a || !a.penjelasan || a.penjelasan.trim() === "") {
+          missing.push(`- Penjelasan pada soal: "${pertanyaanShort}" belum diisi.`);
         }
       });
     });
@@ -274,15 +311,17 @@
   // Pengaturan Faktor Umum
   function loadPengaturan() {
     Swal.showLoading();
-    google.script.run.withSuccessHandler(data => {
+    google.script.run.withSuccessHandler(res => {
       Swal.close();
-      document.getElementById('fu_1_name').value = data.fu_1_name;
-      document.getElementById('fu_1_val').value = data.fu_1_val;
-      document.getElementById('fu_2_name').value = data.fu_2_name;
-      document.getElementById('fu_2_val').value = data.fu_2_val;
-      document.getElementById('fu_3_name').value = data.fu_3_name;
-      document.getElementById('fu_3_val').value = data.fu_3_val;
-      document.getElementById('excluded_bonus').value = data.excluded_bonus || '';
+      document.getElementById('fu_1_name').value = res.fu_1_name;
+      document.getElementById('fu_1_val').value = res.fu_1_val;
+      document.getElementById('fu_2_name').value = res.fu_2_name;
+      document.getElementById('fu_2_val').value = res.fu_2_val;
+      document.getElementById('fu_3_name').value = res.fu_3_name;
+      document.getElementById('fu_3_val').value = res.fu_3_val;
+      document.getElementById('excluded_bonus').value = res.excluded_bonus || '';
+      document.getElementById('template_id').value = res.template_id || '';
+      document.getElementById('folder_id').value = res.folder_id || '';
     }).getFaktorUmum();
   }
   
@@ -295,6 +334,8 @@
       fu_3_name: document.getElementById('fu_3_name').value,
       fu_3_val: document.getElementById('fu_3_val').value,
       excluded_bonus: document.getElementById('excluded_bonus').value,
+      template_id: document.getElementById('template_id').value,
+      folder_id: document.getElementById('folder_id').value
     };
     Swal.showLoading();
     google.script.run.withSuccessHandler(res => Swal.fire('Sukses', res, 'success'))
@@ -336,7 +377,10 @@
             <div class="fw-bold">${d.intensitas}</div>
             <span class="badge ${typeColor}">${d.tipe}</span>
           </td>
-          <td><button class="btn btn-sm btn-outline-info" onclick="lihatOpdLaporan(${index})"><i class="bi bi-eye"></i> Lihat OPD</button></td>
+          <td>
+            <button class="btn btn-sm btn-outline-info mb-1 w-100" onclick="lihatOpdLaporan(${index})"><i class="bi bi-eye"></i> Lihat OPD</button>
+            <button class="btn btn-sm btn-primary w-100" onclick="pilihFormatCetak('${d.urusan}')"><i class="bi bi-printer"></i> Cetak</button>
+          </td>
         </tr>`;
       });
       document.getElementById('t-lap-body').innerHTML = bodyHtml;
@@ -364,6 +408,41 @@
       `,
       icon: 'info'
     });
+  }
+
+  function pilihFormatCetak(urusan) {
+    Swal.fire({
+      title: `Cetak Laporan: ${urusan}`,
+      text: "Pilih format dokumen laporan:",
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'PDF',
+      cancelButtonText: 'DOCX',
+      confirmButtonColor: '#dc3545',
+      cancelButtonColor: '#0d6efd'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        prosesCetak(urusan, 'PDF');
+      } else if (result.dismiss === Swal.DismissReason.cancel) {
+        prosesCetak(urusan, 'DOC');
+      }
+    });
+  }
+
+  function prosesCetak(urusan, format) {
+    Swal.fire({
+      title: 'Memproses Dokumen...',
+      text: 'Sistem sedang mengisi template laporan Anda. Mohon tunggu.',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+    
+    google.script.run.withSuccessHandler(url => {
+      Swal.close();
+      window.open(url, '_blank');
+    }).withFailureHandler(err => {
+      Swal.fire('Gagal', err.message, 'error');
+    }).buatLaporanUrusan(urusan, format);
   }
 
   // Reset Data Script
@@ -440,18 +519,55 @@
 
   // Validasi by Sub Kategori
   function loadSubKat() {
+    document.getElementById('val-subkat-view').classList.remove('hidden');
+    document.getElementById('val-form-view').classList.add('hidden');
     Swal.showLoading();
     google.script.run.withSuccessHandler(res => {
       Swal.close();
+      
+      // Urutkan data: 1. Selesai, 2. Progress Validasi, 3. Belum ada data
+      res.sort((a, b) => {
+        let valA = (a.total_jawaban > 0 && a.total_divalidasi >= a.total_jawaban) ? 3 : (a.total_jawaban > 0 ? 2 : 1);
+        let valB = (b.total_jawaban > 0 && b.total_divalidasi >= b.total_jawaban) ? 3 : (b.total_jawaban > 0 ? 2 : 1);
+        return valB - valA;
+      });
+      
       let h = '';
-      res.forEach(s => h += `<option value="${s}">`);
-      document.getElementById('list-subkat').innerHTML = h;
-    }).getSubKategoriList();
+      res.forEach(s => {
+        let statusBadge = '';
+        let btnClass = 'btn-primary';
+        if (s.total_jawaban === 0) {
+           statusBadge = '<span class="badge bg-secondary">Belum ada data</span>';
+           btnClass = 'btn-outline-secondary';
+        } else if (s.total_divalidasi >= s.total_jawaban) {
+           statusBadge = '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Selesai</span>';
+           btnClass = 'btn-success';
+        } else {
+           statusBadge = `<span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Validasi: ${s.total_divalidasi}/${s.total_jawaban}</span>`;
+        }
+        
+        h += `
+        <tr>
+          <td class="fw-bold">${s.nama}</td>
+          <td>${statusBadge}</td>
+          <td class="text-end">
+            <button class="btn ${btnClass} btn-sm fw-bold" onclick="muatValidasi('${s.nama}')">BUKA VALIDASI</button>
+          </td>
+        </tr>`;
+      });
+      document.getElementById('val-subkat-list').innerHTML = h;
+    }).getSubKategoriStats();
   }
 
-  function muatValidasi() {
-    const subKat = document.getElementById('sel-subkat').value;
+  function kembaliKeDaftarValidasi() {
+    loadSubKat();
+  }
+
+  function muatValidasi(subKat) {
     if(!subKat) return;
+    document.getElementById('val-subkat-view').classList.add('hidden');
+    document.getElementById('val-form-view').classList.remove('hidden');
+    document.getElementById('val-active-subkat').innerText = `Validasi: ${subKat}`;
     Swal.showLoading();
     google.script.run.withSuccessHandler(data => {
       Swal.close();
@@ -491,7 +607,12 @@
                 <span class="badge bg-secondary">Pilihan Responden: ${ans.pilihan_responden}</span>
                 <span class="badge bg-info text-dark ms-1">Skor Responden: ${ans.skala_responden}</span>
                 <br>
-                <div class="mt-2 small"><b>Dokumen:</b> <span class="text-success">${ans.nama_dokumen}</span></div>
+                <div class="mt-2 small">
+                  <b>Sistem (Nilai):</b> <span class="text-dark">${ans.sistem_nilai}</span><br>
+                  <b>Data Dokumen:</b> <span class="text-success">${ans.nama_dokumen}</span><br>
+                  <b>Sumber & Tahun Data:</b> <span class="text-dark">${ans.sumber_data}</span><br>
+                  <b>Penjelasan:</b> <span class="text-dark">${ans.penjelasan}</span>
+                </div>
               </div>
               <div class="row g-2">
                 <div class="col-md-3">
@@ -541,18 +662,31 @@
     });
     
     Swal.showLoading();
-    google.script.run.withSuccessHandler(() => Swal.fire('Berhasil','Data verifikasi tersimpan','success'))
-    .simpanVerifikasi({ items: itemsToSave });
+    google.script.run.withSuccessHandler(() => {
+      Swal.fire('Berhasil','Data verifikasi tersimpan','success');
+      loadSubKat();
+    }).simpanVerifikasi({ items: itemsToSave });
   }
 
   function loadStats() { 
     google.script.run.withSuccessHandler(s => { 
       document.getElementById('s-tot').innerText = s.total; 
-      document.getElementById('s-sud').innerText = s.sudah; 
+      document.getElementById('s-urusan-sudah').innerText = s.urusan_sudah; 
       document.getElementById('s-ta').innerText = s.tipeA;
       document.getElementById('s-tb').innerText = s.tipeB;
       document.getElementById('s-tc').innerText = s.tipeC;
       document.getElementById('s-tl').innerText = s.tipeLain;
+      
+      // Render Table OPD
+      let h = '';
+      if(s.list_opd.length > 0) {
+        s.list_opd.forEach((opd, i) => {
+          h += `<tr><td>${i+1}</td><td class="fw-bold text-primary">${opd}</td></tr>`;
+        });
+      } else {
+        h = '<tr><td colspan="2" class="text-center text-muted">Belum ada data</td></tr>';
+      }
+      document.getElementById('t-opd-sudah-body').innerHTML = h;
     }).getStats(); 
   }
 

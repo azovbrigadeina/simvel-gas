@@ -7,7 +7,9 @@ function getFaktorUmum() {
     fu_2_val: parseFloat(props.getProperty('fu_2_val')) || 0,
     fu_3_name: props.getProperty('fu_3_name') || 'Tindak Lanjut Hasil Evaluasi',
     fu_3_val: parseFloat(props.getProperty('fu_3_val')) || 0,
-    excluded_bonus: props.getProperty('excluded_bonus_urusan') || ''
+    excluded_bonus: props.getProperty('excluded_bonus_urusan') || '',
+    template_id: props.getProperty('template_id') || '',
+    folder_id: props.getProperty('folder_id') || ''
   };
 }
 
@@ -20,5 +22,7 @@ function saveFaktorUmum(data) {
   props.setProperty('fu_3_name', data.fu_3_name);
   props.setProperty('fu_3_val', data.fu_3_val);
   props.setProperty('excluded_bonus_urusan', data.excluded_bonus);
+  props.setProperty('template_id', data.template_id);
+  props.setProperty('folder_id', data.folder_id);
   return "Berhasil disimpan";
 }

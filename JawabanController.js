@@ -7,7 +7,10 @@ function simpanSemuaJawaban(payload) {
     item.skala, 
     item.link, 
     item.pilihan_teks,
-    item.nama_dokumen
+    item.nama_dokumen,
+    item.sistem_nilai || "-",
+    item.sumber_data || "-",
+    item.penjelasan || "-"
   ]);
   sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
   return "Berhasil";
@@ -20,13 +23,54 @@ function getOPDSudahKirim() {
   return [...new Set(data.map(r => r[1]))];
 }
 
-function getSubKategoriList() {
-  const sheet = getSS().getSheetByName("Master_Pertanyaan");
-  if (sheet.getLastRow() < 2) return [];
-  const data = sheet.getDataRange().getValues().slice(1);
-  // Sub Kategori is at index 2 (Kolom C)
-  const subCats = data.map(r => r[2] ? r[2].toString().trim() : "Umum");
-  return [...new Set(subCats)];
+function getSubKategoriStats() {
+  const ss = getSS();
+  const dsSheet = ss.getSheetByName("Master_Pertanyaan");
+  const ds = dsSheet.getLastRow() > 1 ? dsSheet.getDataRange().getValues().slice(1) : [];
+  
+  const djSheet = ss.getSheetByName("Jawaban");
+  const dj = djSheet.getLastRow() > 1 ? djSheet.getDataRange().getValues().slice(1) : [];
+  
+  const vSheet = ss.getSheetByName("Verifikasi");
+  const dv = vSheet.getLastRow() > 1 ? vSheet.getDataRange().getValues().slice(1) : [];
+  
+  let stats = {};
+  
+  // Group by Sub Kategori
+  ds.forEach(r => {
+    let sub = r[2] ? r[2].toString().trim() : "Umum";
+    let qId = r[0].toString();
+    if (!stats[sub]) {
+      stats[sub] = { nama: sub, total_jawaban: 0, total_divalidasi: 0, qIds: [] };
+    }
+    stats[sub].qIds.push(qId);
+  });
+  
+  // Count Jawaban
+  dj.forEach(j => {
+    let qId = j[2].toString();
+    let opd = j[1];
+    for (let sub in stats) {
+      if (stats[sub].qIds.includes(qId)) {
+        stats[sub].total_jawaban++;
+        
+        let isVerified = dv.find(v => v[1] === opd && v[2].toString() === qId);
+        if (isVerified) {
+          stats[sub].total_divalidasi++;
+        }
+        break;
+      }
+    }
+  });
+  
+  // Clean up qIds from the response to reduce payload size
+  let result = Object.values(stats).map(s => ({
+    nama: s.nama,
+    total_jawaban: s.total_jawaban,
+    total_divalidasi: s.total_divalidasi
+  }));
+  
+  return result;
 }
 
 function getJawabanBySubKategori(subKategori) {
@@ -58,6 +102,9 @@ function getJawabanBySubKategori(subKategori) {
         skala_responden: j[3],
         link: j[4],
         nama_dokumen: j[6] || "-",
+        sistem_nilai: j[7] || "-",
+        sumber_data: j[8] || "-",
+        penjelasan: j[9] || "-",
         skala_evaluator: verif ? verif[4] : "",
         catatan: verif ? verif[5] : ""
       };
@@ -76,19 +123,37 @@ function simpanVerifikasi(payload) {
   const sheet = getSS().getSheetByName("Verifikasi");
   const data = sheet.getDataRange().getValues();
   
-  // payload.items structure: [{opd, id_soal, skala_responden, skala_evaluator, catatan}, ...]
+  let existingMap = new Map();
+  for (let i = 1; i < data.length; i++) {
+    existingMap.set(data[i][1] + "-" + data[i][2].toString(), i);
+  }
+  
+  let toAppend = [];
+  const now = new Date();
+  let dataChanged = false;
+  
   payload.items.forEach(item => {
-    let rowIdx = -1;
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][1] === item.opd && data[i][2].toString() === item.id_soal.toString()) { 
-        rowIdx = i + 1; 
-        break; 
-      }
+    const key = item.opd + "-" + item.id_soal.toString();
+    const val = [now, item.opd, item.id_soal, item.skala_responden, item.skala_evaluator, item.catatan];
+    
+    if (existingMap.has(key)) {
+      data[existingMap.get(key)] = val;
+      dataChanged = true;
+    } else {
+      toAppend.push(val);
     }
-    const val = [new Date(), item.opd, item.id_soal, item.skala_responden, item.skala_evaluator, item.catatan];
-    if (rowIdx !== -1) sheet.getRange(rowIdx, 1, 1, 6).setValues([val]);
-    else sheet.appendRow(val);
   });
+  
+  // Bulk update baris yang sudah ada (menimpa sheet)
+  if (dataChanged) {
+    sheet.getRange(1, 1, data.length, data[0].length).setValues(data);
+  }
+  
+  // Bulk insert baris baru
+  if (toAppend.length > 0) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, toAppend.length, toAppend[0].length).setValues(toAppend);
+  }
+  
   return "Berhasil";
 }
 
@@ -96,8 +161,15 @@ function getStats() {
   const ss = getSS();
   const userSheet = ss.getSheetByName("Users");
   const resps = userSheet.getDataRange().getValues().filter(r => r[2] === "Responden").length;
+  
   const jSheet = ss.getSheetByName("Jawaban");
-  const sudah = jSheet.getLastRow() > 1 ? [...new Set(jSheet.getDataRange().getValues().slice(1).map(r => r[1]))].length : 0;
+  const jData = jSheet.getLastRow() > 1 ? jSheet.getDataRange().getValues().slice(1) : [];
+  const listOpd = [...new Set(jData.map(r => r[1]))];
+  const sudah = listOpd.length;
+  
+  // Hitung Urusan yang sudah dinilai
+  const subKatStats = getSubKategoriStats();
+  const urusanSudah = subKatStats.filter(s => s.total_jawaban > 0 && s.total_divalidasi >= s.total_jawaban).length;
   
   // Calculate rating counts
   const laporan = getLaporanNilai();
@@ -113,6 +185,8 @@ function getStats() {
   return { 
     total: resps, 
     sudah: sudah,
+    urusan_sudah: urusanSudah,
+    list_opd: listOpd.sort(),
     tipeA: tipeCounts["Tipe A"],
     tipeB: tipeCounts["Tipe B"],
     tipeC: tipeCounts["Tipe C"],
@@ -220,16 +294,16 @@ function getOpdSudahIsi() {
 
 function resetJawabanOPD(opdName) {
   const ss = getSS();
-  
-  // Hapus dari sheet Jawaban
   const jSheet = ss.getSheetByName("Jawaban");
+  
   if (jSheet.getLastRow() > 1) {
     const jData = jSheet.getDataRange().getValues();
-    // Reverse loop to avoid index shifting
-    for (let i = jData.length - 1; i >= 1; i--) {
-      if (jData[i][1].toString() === opdName) {
-        jSheet.deleteRow(i + 1);
-      }
+    // Gunakan filter array di memori, bukan hapus baris satu per satu
+    const newData = jData.filter((row, i) => i === 0 || row[1].toString() !== opdName);
+    
+    jSheet.clearContents();
+    if (newData.length > 0) {
+      jSheet.getRange(1, 1, newData.length, newData[0].length).setValues(newData);
     }
   }
   
@@ -242,12 +316,15 @@ function resetJawabanOPD(opdName) {
 function resetValidasiOPD(opdName) {
   const ss = getSS();
   const vSheet = ss.getSheetByName("Verifikasi");
+  
   if (vSheet.getLastRow() > 1) {
     const vData = vSheet.getDataRange().getValues();
-    for (let i = vData.length - 1; i >= 1; i--) {
-      if (vData[i][1].toString() === opdName) {
-        vSheet.deleteRow(i + 1);
-      }
+    // Filter out rows matching opdName
+    const newData = vData.filter((row, i) => i === 0 || row[1].toString() !== opdName);
+    
+    vSheet.clearContents();
+    if (newData.length > 0) {
+      vSheet.getRange(1, 1, newData.length, newData[0].length).setValues(newData);
     }
   }
   return "Data validasi evaluator untuk " + opdName + " berhasil di-reset!";
