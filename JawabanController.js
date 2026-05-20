@@ -7,6 +7,35 @@
  * pembacaan spreadsheet berulang di fungsi-fungsi yang berbeda.
  */
 function _loadSharedData(ss) {
+  if (SETTINGS.USE_FIREBASE) {
+    const masterPertanyaan = Firebase.getCachedMasterPertanyaan();
+    const jawabanAll = Firebase.get("jawaban") || {};
+    const verifikasiAll = Firebase.get("verifikasi") || {};
+
+    const ds = [];
+    Object.entries(masterPertanyaan).forEach(([id, p]) => {
+      ds.push([Firebase.unescapeKey(id), p.no, p.urusan, p.pertanyaan, p.indikator, p.data_dukung, p.penjelasan, p.referensi, p.bobot]);
+    });
+
+    const dj = [];
+    Object.entries(jawabanAll).forEach(([opd, dataOPD]) => {
+      const rawOPD = Firebase.unescapeKey(opd);
+      Object.entries(dataOPD || {}).forEach(([id, j]) => {
+        dj.push([j.timestamp, rawOPD, Firebase.unescapeKey(id), j.skala_responden, j.link, j.pilihan_teks, j.nama_dokumen, j.sistem_nilai, j.sumber_data, j.penjelasan]);
+      });
+    });
+
+    const dv = [];
+    Object.entries(verifikasiAll).forEach(([opd, dataOPD]) => {
+      const rawOPD = Firebase.unescapeKey(opd);
+      Object.entries(dataOPD || {}).forEach(([id, v]) => {
+        dv.push([v.timestamp, rawOPD, Firebase.unescapeKey(id), v.skala_responden, v.skala_evaluator, v.catatan_evaluator]);
+      });
+    });
+
+    return { ds: ds, dj: dj, dv: dv };
+  }
+
   const dsSheet = ss.getSheetByName("Master_Pertanyaan");
   const djSheet = ss.getSheetByName("Jawaban");
   const vSheet = ss.getSheetByName("Verifikasi");
@@ -211,6 +240,26 @@ function simpanSemuaJawaban(payload) {
     }
   }
 
+  if (SETTINGS.USE_FIREBASE) {
+    const ts = new Date().toISOString();
+    const opd = Firebase.escapeKey(payload.opd);
+    const updates = {};
+    payload.jawaban.forEach(item => {
+      updates[Firebase.escapeKey(item.id.toString())] = {
+        timestamp: ts,
+        skala_responden: item.skala !== "" ? Number(item.skala) : "",
+        link: item.link || "",
+        pilihan_teks: item.pilihan_teks || "",
+        nama_dokumen: item.nama_dokumen || "",
+        sistem_nilai: item.sistem_nilai || "-",
+        sumber_data: item.sumber_data || "-",
+        penjelasan: item.penjelasan || "-"
+      };
+    });
+    Firebase.patch(`jawaban/${opd}`, updates);
+    return "Berhasil";
+  }
+
   const sheet = getSS().getSheetByName("Jawaban");
   const rows = payload.jawaban.map(item => [
     new Date(), 
@@ -229,6 +278,11 @@ function simpanSemuaJawaban(payload) {
 }
 
 function getOPDSudahKirim() {
+  if (SETTINGS.USE_FIREBASE) {
+    const jawabanAll = Firebase.get("jawaban") || {};
+    return Object.keys(jawabanAll).map(opd => Firebase.unescapeKey(opd)).sort();
+  }
+
   const sheet = getSS().getSheetByName("Jawaban");
   if (sheet.getLastRow() < 2) return [];
   const data = sheet.getDataRange().getValues().slice(1);
@@ -246,6 +300,24 @@ function getJawabanBySubKategori(subKategori) {
 }
 
 function simpanVerifikasi(payload) {
+  if (SETTINGS.USE_FIREBASE) {
+    const ts = new Date().toISOString();
+    // Gunakan opd dari elemen pertama
+    if (!payload.items || payload.items.length === 0) return "Berhasil";
+    const opd = Firebase.escapeKey(payload.items[0].opd); 
+    const updates = {};
+    payload.items.forEach(item => {
+      updates[Firebase.escapeKey(item.id_soal.toString())] = {
+        timestamp: ts,
+        skala_responden: item.skala_responden !== "" ? Number(item.skala_responden) : "",
+        skala_evaluator: item.skala_evaluator !== "" ? Number(item.skala_evaluator) : "",
+        catatan_evaluator: item.catatan || ""
+      };
+    });
+    Firebase.patch(`verifikasi/${opd}`, updates);
+    return "Berhasil";
+  }
+
   const sheet = getSS().getSheetByName("Verifikasi");
   const data = sheet.getDataRange().getValues();
   
@@ -343,6 +415,9 @@ function determineRating(score) {
 }
 
 function getOpdSudahIsi() {
+  if (SETTINGS.USE_FIREBASE) {
+    return getOPDSudahKirim();
+  }
   const ss = getSS();
   const jSheet = ss.getSheetByName("Jawaban");
   if (jSheet.getLastRow() < 2) return [];
@@ -352,6 +427,13 @@ function getOpdSudahIsi() {
 }
 
 function resetJawabanOPD(opdName) {
+  if (SETTINGS.USE_FIREBASE) {
+    const opd = Firebase.escapeKey(opdName);
+    Firebase.remove(`jawaban/${opd}`);
+    Firebase.remove(`verifikasi/${opd}`);
+    return "Seluruh data jawaban dan validasi untuk " + opdName + " berhasil di-reset!";
+  }
+
   const ss = getSS();
   const jSheet = ss.getSheetByName("Jawaban");
   
@@ -373,6 +455,12 @@ function resetJawabanOPD(opdName) {
 }
 
 function resetValidasiOPD(opdName) {
+  if (SETTINGS.USE_FIREBASE) {
+    const opd = Firebase.escapeKey(opdName);
+    Firebase.remove(`verifikasi/${opd}`);
+    return "Data validasi evaluator untuk " + opdName + " berhasil di-reset!";
+  }
+
   const ss = getSS();
   const vSheet = ss.getSheetByName("Verifikasi");
   
