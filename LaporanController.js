@@ -10,12 +10,12 @@ function buatLaporanUrusan(namaUrusan, format) {
   // Ambil data Global Faktor Umum
   const fuData = getFaktorUmum();
   
-  // Ambil rekap laporan untuk mendapatkan Total Nilai
-  const laporanFull = getLaporanNilai();
-  // Karena laporan per OPD per Urusan, kita perlu merangkum totalnya?
-  // User minta 1 laporan per Urusan. Berarti nilai totalnya gimana? 
-  // Rata-rata? Atau nilai per OPD? Ini ambigu. Tapi kita akan ambil nilai dari OPD pertama saja untuk header jika perlu, atau kosongkan.
-  // Lebih baik kita cari semua OPD yang punya urusan ini.
+  // OPTIMASI: Baca sheet data SEKALI, lalu hitung laporan dan jawaban dari cache
+  const ss = getSS();
+  const sharedData = _loadSharedData(ss);
+  const settings = _loadFaktorUmumGlobal(ss);
+  
+  const laporanFull = _computeLaporanNilai(sharedData.ds, sharedData.dv, settings.faktorUmumGlobal, settings.excludedBonus);
   const laporanUrusan = laporanFull.filter(l => l.urusan === namaUrusan);
   
   // Jika tidak ada data
@@ -93,7 +93,8 @@ function buatLaporanUrusan(namaUrusan, format) {
   }
   
   // --- TABEL 2: FAKTOR TEKNIS ---
-  const semuaJawaban = getJawabanBySubKategori(namaUrusan);
+  // OPTIMASI: gunakan sharedData yang sudah di-load di atas
+  const semuaJawaban = _computeJawabanBySubKategori(namaUrusan, sharedData.ds, sharedData.dj, sharedData.dv);
   
   let ftRowTemplate = null;
   let ftTable = null;

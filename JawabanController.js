@@ -1,4 +1,216 @@
+// ============================================================
+// INTERNAL HELPERS — Shared Data Loading & Computation
+// ============================================================
+
+/**
+ * Memuat data dari 3 sheet utama sekaligus untuk menghindari
+ * pembacaan spreadsheet berulang di fungsi-fungsi yang berbeda.
+ */
+function _loadSharedData(ss) {
+  const dsSheet = ss.getSheetByName("Master_Pertanyaan");
+  const djSheet = ss.getSheetByName("Jawaban");
+  const vSheet = ss.getSheetByName("Verifikasi");
+  
+  return {
+    ds: dsSheet.getLastRow() > 1 ? dsSheet.getDataRange().getValues().slice(1) : [],
+    dj: djSheet.getLastRow() > 1 ? djSheet.getDataRange().getValues().slice(1) : [],
+    dv: vSheet.getLastRow() > 1 ? vSheet.getDataRange().getValues().slice(1) : []
+  };
+}
+
+/**
+ * Memuat pengaturan faktor umum global (dari sheet Pengaturan_Umum)
+ * dan daftar urusan yang dikecualikan dari bonus (dari PropertiesService).
+ */
+function _loadFaktorUmumGlobal(ss) {
+  let faktorUmumGlobal = 0;
+  let excludedBonus = [];
+  try {
+    const props = PropertiesService.getScriptProperties();
+    excludedBonus = (props.getProperty('excluded_bonus_urusan') || "").split(",").map(s => s.trim().toLowerCase());
+
+    const sheetPengaturan = ss.getSheetByName("Pengaturan_Umum");
+    if (sheetPengaturan) {
+      const dataPengaturan = sheetPengaturan.getDataRange().getValues();
+      for (let i = 1; i < dataPengaturan.length; i++) {
+        faktorUmumGlobal += parseFloat(dataPengaturan[i][2]) || 0;
+      }
+    }
+  } catch(e) {}
+  return { faktorUmumGlobal: faktorUmumGlobal, excludedBonus: excludedBonus };
+}
+
+/**
+ * Komputasi statistik sub-kategori menggunakan Map/Set untuk O(1) lookup.
+ * Menggantikan nested loop + Array.includes() yang sebelumnya O(n²).
+ */
+function _computeSubKatStats(ds, dj, dv) {
+  var stats = {};
+
+  // Reverse-map: qId → subKategori (O(1) lookup)
+  var qIdToSub = {};
+  ds.forEach(function(r) {
+    var sub = r[2] ? r[2].toString().trim() : "Umum";
+    var qId = r[0].toString();
+    qIdToSub[qId] = sub;
+    if (!stats[sub]) {
+      stats[sub] = { nama: sub, total_jawaban: 0, total_divalidasi: 0 };
+    }
+  });
+
+  // Verification Set for O(1) lookup
+  var verifSet = {};
+  dv.forEach(function(v) {
+    verifSet[v[1] + "||" + v[2].toString()] = true;
+  });
+
+  // Count Jawaban — O(1) per item (was O(n²))
+  dj.forEach(function(j) {
+    var qId = j[2].toString();
+    var opd = j[1];
+    var sub = qIdToSub[qId];
+    if (sub && stats[sub]) {
+      stats[sub].total_jawaban++;
+      if (verifSet[opd + "||" + qId]) {
+        stats[sub].total_divalidasi++;
+      }
+    }
+  });
+
+  var result = [];
+  for (var sub in stats) {
+    result.push({
+      nama: stats[sub].nama,
+      total_jawaban: stats[sub].total_jawaban,
+      total_divalidasi: stats[sub].total_divalidasi
+    });
+  }
+  return result;
+}
+
+/**
+ * Komputasi jawaban per sub-kategori menggunakan Map untuk O(1) lookup verifikasi.
+ * Menggantikan dv.find() yang sebelumnya O(n) per jawaban.
+ */
+function _computeJawabanBySubKategori(subKategori, ds, dj, dv) {
+  // Verification Map for O(1) lookup (was dv.find() = O(n) per call)
+  var verifMap = {};
+  dv.forEach(function(v) {
+    verifMap[v[1] + "||" + v[2].toString()] = v;
+  });
+
+  // Filter pertanyaan by Sub Kategori
+  var soalTerkait = ds.filter(function(s) {
+    return (s[2] ? s[2].toString().trim() : "Umum") === subKategori;
+  });
+
+  return soalTerkait.map(function(soal) {
+    var idSoal = soal[0].toString();
+    var pertanyaan = soal[3];
+    var bobot_str = soal[8] ? soal[8].toString() : "";
+
+    var jawabanSoalIni = dj.filter(function(j) {
+      return j[2].toString() === idSoal;
+    });
+
+    var jawabanMapped = jawabanSoalIni.map(function(j) {
+      var opd = j[1];
+      var verif = verifMap[opd + "||" + idSoal];
+      return {
+        opd: opd,
+        pilihan_responden: j[5] || "-",
+        skala_responden: j[3],
+        link: j[4],
+        nama_dokumen: j[6] || "-",
+        sistem_nilai: j[7] || "-",
+        sumber_data: j[8] || "-",
+        penjelasan: j[9] || "-",
+        skala_evaluator: verif ? verif[4] : "",
+        catatan: verif ? verif[5] : ""
+      };
+    });
+
+    return {
+      id_soal: idSoal,
+      pertanyaan: pertanyaan,
+      bobot_str: bobot_str,
+      jawaban_opd: jawabanMapped
+    };
+  });
+}
+
+/**
+ * Komputasi laporan nilai dari data yang sudah di-load.
+ * Menghindari pembacaan ulang spreadsheet.
+ */
+function _computeLaporanNilai(ds, dv, faktorUmumGlobal, excludedBonus) {
+  // Map id_soal -> sub_kategori
+  var mapSubKategori = {};
+  ds.forEach(function(r) {
+    var sub = r[2] ? r[2].toString().trim() : "Umum";
+    mapSubKategori[r[0].toString()] = sub;
+  });
+
+  // Score per OPD per Sub-kategori
+  var opdScores = {};
+  dv.forEach(function(r) {
+    var opd = r[1];
+    var idSoal = r[2].toString();
+    var skorEval = parseFloat(r[4]) || 0;
+
+    if (!opdScores[opd]) opdScores[opd] = {};
+    var subKat = mapSubKategori[idSoal] || "Umum";
+    if (!opdScores[opd][subKat]) opdScores[opd][subKat] = 0;
+    opdScores[opd][subKat] += skorEval;
+  });
+
+  var laporan = [];
+  for (var opd in opdScores) {
+    for (var urusan in opdScores[opd]) {
+      var teknis = opdScores[opd][urusan];
+      var totalMurni = faktorUmumGlobal + teknis;
+      var isExcluded = excludedBonus.includes(urusan.toLowerCase());
+      var multiplier = isExcluded ? 1.0 : 1.1;
+      var totalAkhir = totalMurni * multiplier;
+      var ratingInfo = determineRating(totalAkhir);
+
+      laporan.push({
+        opd: opd,
+        urusan: urusan,
+        faktor_umum: faktorUmumGlobal,
+        faktor_teknis: teknis,
+        total_akhir: totalAkhir,
+        bonus_applied: !isExcluded,
+        intensitas: ratingInfo.intensitas,
+        tipe: ratingInfo.tipe
+      });
+    }
+  }
+
+  laporan.sort(function(a, b) { return b.total_akhir - a.total_akhir; });
+  return laporan;
+}
+
+// ============================================================
+// PUBLIC API FUNCTIONS (Thin wrappers — sama persis hasilnya)
+// ============================================================
+
 function simpanSemuaJawaban(payload) {
+  // Validasi Batas Waktu Server-Side
+  const props = PropertiesService.getScriptProperties();
+  const dGlobal = props.getProperty('deadline_global') || '';
+  let opdDeadlines = {};
+  try { opdDeadlines = JSON.parse(props.getProperty('deadline_opd') || '{}'); } catch(e) {}
+  
+  let deadlineStr = opdDeadlines[payload.opd] || dGlobal;
+  if (deadlineStr) {
+    const deadlineTime = new Date(deadlineStr).getTime();
+    const now = new Date().getTime();
+    if (now > deadlineTime) {
+      throw new Error("Gagal menyimpan: Waktu pengisian untuk OPD Anda telah berakhir.");
+    }
+  }
+
   const sheet = getSS().getSheetByName("Jawaban");
   const rows = payload.jawaban.map(item => [
     new Date(), 
@@ -24,99 +236,13 @@ function getOPDSudahKirim() {
 }
 
 function getSubKategoriStats() {
-  const ss = getSS();
-  const dsSheet = ss.getSheetByName("Master_Pertanyaan");
-  const ds = dsSheet.getLastRow() > 1 ? dsSheet.getDataRange().getValues().slice(1) : [];
-  
-  const djSheet = ss.getSheetByName("Jawaban");
-  const dj = djSheet.getLastRow() > 1 ? djSheet.getDataRange().getValues().slice(1) : [];
-  
-  const vSheet = ss.getSheetByName("Verifikasi");
-  const dv = vSheet.getLastRow() > 1 ? vSheet.getDataRange().getValues().slice(1) : [];
-  
-  let stats = {};
-  
-  // Group by Sub Kategori
-  ds.forEach(r => {
-    let sub = r[2] ? r[2].toString().trim() : "Umum";
-    let qId = r[0].toString();
-    if (!stats[sub]) {
-      stats[sub] = { nama: sub, total_jawaban: 0, total_divalidasi: 0, qIds: [] };
-    }
-    stats[sub].qIds.push(qId);
-  });
-  
-  // Count Jawaban
-  dj.forEach(j => {
-    let qId = j[2].toString();
-    let opd = j[1];
-    for (let sub in stats) {
-      if (stats[sub].qIds.includes(qId)) {
-        stats[sub].total_jawaban++;
-        
-        let isVerified = dv.find(v => v[1] === opd && v[2].toString() === qId);
-        if (isVerified) {
-          stats[sub].total_divalidasi++;
-        }
-        break;
-      }
-    }
-  });
-  
-  // Clean up qIds from the response to reduce payload size
-  let result = Object.values(stats).map(s => ({
-    nama: s.nama,
-    total_jawaban: s.total_jawaban,
-    total_divalidasi: s.total_divalidasi
-  }));
-  
-  return result;
+  const data = _loadSharedData(getSS());
+  return _computeSubKatStats(data.ds, data.dj, data.dv);
 }
 
 function getJawabanBySubKategori(subKategori) {
-  const ss = getSS();
-  const ds = ss.getSheetByName("Master_Pertanyaan").getDataRange().getValues().slice(1);
-  const djSheet = ss.getSheetByName("Jawaban");
-  const dj = djSheet.getLastRow() > 1 ? djSheet.getDataRange().getValues().slice(1) : [];
-  const vSheet = ss.getSheetByName("Verifikasi");
-  const dv = vSheet.getLastRow() > 1 ? vSheet.getDataRange().getValues().slice(1) : [];
-  
-  // Filter pertanyaan by Sub Kategori (Kolom C / Index 2)
-  const soalTerkait = ds.filter(s => (s[2] ? s[2].toString().trim() : "Umum") === subKategori);
-  
-  // Build the result
-  return soalTerkait.map(soal => {
-    const idSoal = soal[0].toString();
-    const pertanyaan = soal[3];
-    const bobot_str = soal[8] ? soal[8].toString() : "";
-    
-    // Cari semua OPD yang menjawab soal ini
-    const jawabanSoalIni = dj.filter(j => j[2].toString() === idSoal);
-    
-    const jawabanMapped = jawabanSoalIni.map(j => {
-      const opd = j[1];
-      const verif = dv.find(v => v[1] === opd && v[2].toString() === idSoal);
-      return {
-        opd: opd,
-        pilihan_responden: j[5] || "-",
-        skala_responden: j[3],
-        link: j[4],
-        nama_dokumen: j[6] || "-",
-        sistem_nilai: j[7] || "-",
-        sumber_data: j[8] || "-",
-        penjelasan: j[9] || "-",
-        skala_evaluator: verif ? verif[4] : "",
-        catatan: verif ? verif[5] : ""
-      };
-    });
-    
-    return {
-      id_soal: idSoal,
-      pertanyaan: pertanyaan,
-      bobot_str: bobot_str,
-      jawaban_opd: jawabanMapped
-    };
-  });
+  const data = _loadSharedData(getSS());
+  return _computeJawabanBySubKategori(subKategori, data.ds, data.dj, data.dv);
 }
 
 function simpanVerifikasi(payload) {
@@ -157,22 +283,29 @@ function simpanVerifikasi(payload) {
   return "Berhasil";
 }
 
+/**
+ * OPTIMASI: getStats() sekarang membaca semua sheet SEKALI,
+ * lalu menghitung subKatStats dan laporan dari data yang sama.
+ * Sebelumnya: ~8 sheet reads → Sekarang: ~5 sheet reads.
+ */
 function getStats() {
   const ss = getSS();
+  
+  // Baca semua data SEKALI
   const userSheet = ss.getSheetByName("Users");
   const resps = userSheet.getDataRange().getValues().filter(r => r[2] === "Responden").length;
   
-  const jSheet = ss.getSheetByName("Jawaban");
-  const jData = jSheet.getLastRow() > 1 ? jSheet.getDataRange().getValues().slice(1) : [];
-  const listOpd = [...new Set(jData.map(r => r[1]))];
+  const data = _loadSharedData(ss);
+  const settings = _loadFaktorUmumGlobal(ss);
+
+  const listOpd = [...new Set(data.dj.map(r => r[1]))];
   const sudah = listOpd.length;
   
-  // Hitung Urusan yang sudah dinilai
-  const subKatStats = getSubKategoriStats();
+  // Hitung dari shared data (bukan panggil fungsi yang baca sheet lagi)
+  const subKatStats = _computeSubKatStats(data.ds, data.dj, data.dv);
   const urusanSudah = subKatStats.filter(s => s.total_jawaban > 0 && s.total_divalidasi >= s.total_jawaban).length;
   
-  // Calculate rating counts
-  const laporan = getLaporanNilai();
+  const laporan = _computeLaporanNilai(data.ds, data.dv, settings.faktorUmumGlobal, settings.excludedBonus);
   let tipeCounts = { "Tipe A": 0, "Tipe B": 0, "Tipe C": 0, "Lainnya": 0 };
   
   laporan.forEach(d => {
@@ -196,83 +329,9 @@ function getStats() {
 
 function getLaporanNilai() {
   const ss = getSS();
-  
-  // 1. Get Global Pengaturan (Faktor Umum & Exclusion Bonus)
-  let faktorUmumGlobal = 0;
-  let excludedBonus = [];
-  try {
-    const props = PropertiesService.getScriptProperties();
-    excludedBonus = (props.getProperty('excluded_bonus_urusan') || "").split(",").map(s => s.trim().toLowerCase());
-
-    const sheetPengaturan = ss.getSheetByName("Pengaturan_Umum");
-    if (sheetPengaturan) {
-      const dataPengaturan = sheetPengaturan.getDataRange().getValues();
-      for(let i = 1; i < dataPengaturan.length; i++) {
-        faktorUmumGlobal += parseFloat(dataPengaturan[i][2]) || 0;
-      }
-    }
-  } catch(e) {}
-  
-  // 2. Get Master Pertanyaan (to map id_soal -> sub_kategori)
-  const dsSheet = ss.getSheetByName("Master_Pertanyaan");
-  const ds = dsSheet.getLastRow() > 1 ? dsSheet.getDataRange().getValues().slice(1) : [];
-  let mapSubKategori = {}; // { "id_soal": "Sub Kategori" }
-  ds.forEach(r => {
-    const sub = r[2] ? r[2].toString().trim() : "Umum";
-    mapSubKategori[r[0].toString()] = sub;
-  });
-  
-  // 3. Get all Verifikasi (Evaluator's verified scores)
-  const vSheet = ss.getSheetByName("Verifikasi");
-  const dv = vSheet.getLastRow() > 1 ? vSheet.getDataRange().getValues().slice(1) : [];
-  
-  // Hitung score per OPD per Sub-kategori
-  let opdScores = {}; // { "OPD A": { "Kepegawaian": 10, "Keuangan": 20 } }
-  
-  dv.forEach(r => {
-    const opd = r[1];
-    const idSoal = r[2].toString();
-    const skorEval = parseFloat(r[4]) || 0;
-    
-    if (!opdScores[opd]) opdScores[opd] = {};
-    
-    const subKat = mapSubKategori[idSoal] || "Umum";
-    if (!opdScores[opd][subKat]) opdScores[opd][subKat] = 0;
-    
-    opdScores[opd][subKat] += skorEval;
-  });
-  
-  // Format for reporting
-  let laporan = [];
-  for (let opd in opdScores) {
-    for (let urusan in opdScores[opd]) {
-      let teknis = opdScores[opd][urusan];
-      let totalMurni = faktorUmumGlobal + teknis;
-      
-      // Apply Multiplier 1.1x if not excluded
-      let isExcluded = excludedBonus.includes(urusan.toLowerCase());
-      let multiplier = isExcluded ? 1.0 : 1.1;
-      let totalAkhir = totalMurni * multiplier;
-      
-      let ratingInfo = determineRating(totalAkhir);
-      
-      laporan.push({
-        opd: opd,
-        urusan: urusan,
-        faktor_umum: faktorUmumGlobal,
-        faktor_teknis: teknis,
-        total_akhir: totalAkhir,
-        bonus_applied: !isExcluded,
-        intensitas: ratingInfo.intensitas,
-        tipe: ratingInfo.tipe
-      });
-    }
-  }
-  
-  // Sort by highest total_akhir
-  laporan.sort((a, b) => b.total_akhir - a.total_akhir);
-  
-  return laporan;
+  const data = _loadSharedData(ss);
+  const settings = _loadFaktorUmumGlobal(ss);
+  return _computeLaporanNilai(data.ds, data.dv, settings.faktorUmumGlobal, settings.excludedBonus);
 }
 
 function determineRating(score) {

@@ -1,6 +1,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
   let sess = {}, grp = {}, cats = [], ans = {}, vData = [];
+  const DRIVE_REGEX = /^https:\/\/(drive|docs)\.google\.com\/.*$/;
 
   let currentRole = "";
 
@@ -86,25 +87,103 @@
 
   let parentCat = {};
 
+  let isDeadlinePassed = false;
+  let deadlineTimerInterval;
+
   function initR() {
     Swal.showLoading();
     grp = {}; cats = []; parentCat = {};
-    google.script.run.withSuccessHandler(data => {
-      Swal.close();
-      data.forEach(r => {
-        let ut = r[1] ? r[1].trim() : "Lainnya";
-        let sub = r[2] ? r[2].trim() : "Umum";
-        let key = ut + "|||" + sub;
-
-        if(!grp[key]) { 
-          grp[key] = []; 
-          cats.push(key); 
-          parentCat[key] = { utama: ut, subkat: sub };
+    
+    // Check deadline first
+    google.script.run.withSuccessHandler(res => {
+      let deadlineStr = "";
+      try {
+        const opdDeadlines = JSON.parse(res.deadline_opd || '{}');
+        if (opdDeadlines[sess.nama_opd]) {
+          deadlineStr = opdDeadlines[sess.nama_opd];
+        } else {
+          deadlineStr = res.deadline_global || "";
         }
-        grp[key].push(r);
-      });
-      showS(0);
-    }).getPertanyaan(sess.nama_opd);
+      } catch(e) {
+        deadlineStr = res.deadline_global || "";
+      }
+      
+      startDeadlineTimer(deadlineStr);
+      
+      // Fetch Pertanyaan
+      google.script.run.withSuccessHandler(data => {
+        Swal.close();
+        data.forEach(r => {
+          let ut = r[1] ? r[1].trim() : "Lainnya";
+          let sub = r[2] ? r[2].trim() : "Umum";
+          let key = ut + "|||" + sub;
+
+          if(!grp[key]) { 
+            grp[key] = []; 
+            cats.push(key); 
+            parentCat[key] = { utama: ut, subkat: sub };
+          }
+          grp[key].push(r);
+        });
+        showS(0);
+      }).getPertanyaan(sess.nama_opd);
+    }).getDeadlineSettings();
+  }
+
+  function startDeadlineTimer(deadlineStr) {
+    const banner = document.getElementById('deadline-banner');
+    const textEl = document.getElementById('deadline-text');
+    const countEl = document.getElementById('deadline-countdown');
+    
+    if (deadlineTimerInterval) clearInterval(deadlineTimerInterval);
+    
+    if (!deadlineStr) {
+      banner.classList.add('d-none');
+      isDeadlinePassed = false;
+      return;
+    }
+    
+    banner.classList.remove('d-none');
+    const deadlineTime = new Date(deadlineStr).getTime();
+    
+    function updateTimer() {
+      const now = new Date().getTime();
+      const distance = deadlineTime - now;
+      
+      if (distance < 0) {
+        clearInterval(deadlineTimerInterval);
+        isDeadlinePassed = true;
+        banner.classList.remove('alert-warning', 'alert-info');
+        banner.classList.add('alert-danger');
+        textEl.innerText = "Waktu pengisian telah melewati batas yang ditentukan.";
+        countEl.innerHTML = '<i class="bi bi-x-circle-fill"></i> BERAKHIR';
+        
+        // Hide Kirim button if exists
+        const btnKirim = document.getElementById('btn-kirim-ans');
+        if(btnKirim && btnKirim.innerText.includes('KIRIM')) btnKirim.classList.add('d-none');
+        
+        // Disable inputs
+        const inputs = document.querySelectorAll('#f-cont input, #f-cont textarea');
+        inputs.forEach(el => el.disabled = true);
+      } else {
+        isDeadlinePassed = false;
+        banner.classList.remove('alert-danger');
+        banner.classList.add('alert-warning');
+        
+        const dStr = new Date(deadlineStr).toLocaleString('id-ID', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'});
+        textEl.innerText = `Batas akhir: ${dStr}`;
+        
+        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        
+        if(days > 0) countEl.innerText = `${days} Hari ${hours} Jam`;
+        else countEl.innerText = `${hours} Jam ${minutes} Mnt`;
+      }
+    }
+    
+    updateTimer();
+    deadlineTimerInterval = setInterval(updateTimer, 60000);
   }
 
   function showS(idx) {
@@ -120,6 +199,8 @@
         </div>
       </div>`;
     
+    let dis = isDeadlinePassed ? 'disabled' : '';
+
     qs.forEach(q => {
       const s = ans[q[0]] || {id: q[0], skala:"", link:"", pilihan_teks: "", nama_dokumen: "", sistem_nilai: "", sumber_data: "", penjelasan: ""};
       let weights = q[8] ? q[8].toString().split('|') : [0,0,0,0,0];
@@ -134,7 +215,7 @@
           <div class="form-check mb-2 p-2 border rounded-3 bg-light bg-opacity-50">
             <input class="form-check-input ms-1" type="radio" name="radio_${q[0]}" 
               id="${inputId}" value="${bbt}" data-teks="${lab}" 
-              onchange="savRadio('${q[0]}', this)" ${isChecked}>
+              onchange="savRadio('${q[0]}', this)" ${isChecked} ${dis}>
             <label class="form-check-label ms-2" for="${inputId}">
               <strong>${lab}.</strong> <span class="text-muted small ms-2">(Bobot: ${bbt})</span>
             </label>
@@ -153,21 +234,21 @@
           </div>
           <div class="col-md-6">
             <label class="small fw-bold text-muted mb-2">Sistem (Nilai): <span class="text-danger">*</span></label>
-            <input type="text" id="nilai-${q[0]}" class="form-control border-primary mb-3" value="${s.sistem_nilai || ''}" oninput="savSistemNilai('${q[0]}',this)" placeholder="contoh: Nilai satuan sebenarnya misal 123 Desa">
+            <input type="text" id="nilai-${q[0]}" class="form-control border-primary mb-3" value="${s.sistem_nilai || ''}" oninput="savSistemNilai('${q[0]}',this)" placeholder="contoh: Nilai satuan sebenarnya misal 123 Desa" ${dis}>
 
             <label class="small fw-bold text-muted mb-2">Data Dokumen Pendukung: <span class="text-danger">*</span></label>
-            <input type="text" id="doc-${q[0]}" class="form-control border-primary mb-3" value="${s.nama_dokumen || ''}" oninput="savDocName('${q[0]}',this)" placeholder="Contoh: SK Tim Pelaksana, Laporan Kegiatan, dsb">
+            <input type="text" id="doc-${q[0]}" class="form-control border-primary mb-3" value="${s.nama_dokumen || ''}" oninput="savDocName('${q[0]}',this)" placeholder="Contoh: SK Tim Pelaksana, Laporan Kegiatan, dsb" ${dis}>
 
             <label class="small fw-bold text-muted mb-2">Link Bukti Dukung (Google Drive): <span class="text-danger">*</span></label>
-            <textarea id="link-${q[0]}" class="form-control border-primary mb-3 ${s.link && !/^https:\/\/(drive|docs)\.google\.com\/.*$/.test(s.link) ? 'is-invalid' : (s.link ? 'is-valid' : '')}" rows="2" oninput="savLinkVal('${q[0]}',this)" placeholder="https://drive.google.com/...">${s.link}</textarea>
+            <textarea id="link-${q[0]}" class="form-control border-primary mb-3 ${s.link && !/^https:\/\/(drive|docs)\.google\.com\/.*$/.test(s.link) ? 'is-invalid' : (s.link ? 'is-valid' : '')}" rows="2" oninput="savLinkVal('${q[0]}',this)" placeholder="https://drive.google.com/..." ${dis}>${s.link}</textarea>
             <div class="invalid-feedback">Link harus berasal dari Google Drive (drive.google.com atau docs.google.com)</div>
             <div class="valid-feedback">Link valid!</div>
             
             <label class="small fw-bold text-muted mb-2 mt-3">Sumber Data & Tahun Data: <span class="text-danger">*</span></label>
-            <input type="text" id="sumber-${q[0]}" class="form-control border-primary mb-3" value="${s.sumber_data || ''}" oninput="savSumberData('${q[0]}',this)" placeholder="Contoh: BPS 2023, Laporan Dinas 2024">
+            <input type="text" id="sumber-${q[0]}" class="form-control border-primary mb-3" value="${s.sumber_data || ''}" oninput="savSumberData('${q[0]}',this)" placeholder="Contoh: BPS 2023, Laporan Dinas 2024" ${dis}>
             
             <label class="small fw-bold text-muted mb-2">Penjelasan: <span class="text-danger">*</span></label>
-            <textarea id="penjelasan-${q[0]}" class="form-control border-primary" rows="2" oninput="savPenjelasan('${q[0]}',this)" placeholder="Buat Narasi Singkat tentang Data Tersebut">${s.penjelasan || ''}</textarea>
+            <textarea id="penjelasan-${q[0]}" class="form-control border-primary" rows="2" oninput="savPenjelasan('${q[0]}',this)" placeholder="Buat Narasi Singkat tentang Data Tersebut" ${dis}>${s.penjelasan || ''}</textarea>
             
             <div class="mt-3 small text-secondary"><i class="bi bi-info-circle"></i> Pastikan akses link disetel ke "Siapa saja yang memiliki link"</div>
           </div>
@@ -175,11 +256,14 @@
       </div>`;
     });
 
+    let btnLanjutKirim = idx < cats.length - 1 ? 'LANJUT' : 'KIRIM JAWABAN';
+    let hideKirim = (isDeadlinePassed && idx === cats.length - 1) ? 'd-none' : '';
+
     h += `
     <div class="d-flex justify-content-between pb-5 mt-4">
       <button class="btn btn-secondary px-4" onclick="showS(${idx-1})" ${idx===0?'disabled':''}>KEMBALI</button>
-      <button class="btn btn-primary px-5 fw-bold" onclick="${idx<cats.length-1?`showS(${idx+1})`:`finS()`}">
-        ${idx<cats.length-1?'LANJUT':'KIRIM JAWABAN'}
+      <button id="btn-kirim-ans" class="btn btn-primary px-5 fw-bold ${hideKirim}" onclick="${idx<cats.length-1?`showS(${idx+1})`:`finS()`}">
+        ${btnLanjutKirim}
       </button>
     </div>`;
     cont.innerHTML = h; window.scrollTo(0,0);
@@ -217,14 +301,13 @@
 
   function savLinkVal(id, el) {
     const val = el.value.trim();
-    const drvRegex = /^https:\/\/(drive|docs)\.google\.com\/.*$/;
     
     initAnsObject(id);
     ans[id].link = val;
     
     if(val === "") {
       el.classList.remove('is-valid', 'is-invalid');
-    } else if(drvRegex.test(val)) {
+    } else if(DRIVE_REGEX.test(val)) {
       el.classList.remove('is-invalid');
       el.classList.add('is-valid');
     } else {
@@ -236,7 +319,6 @@
   function finS() { 
     // Validation: Check all questions in grp
     let missing = [];
-    const drvRegex = /^https:\/\/(drive|docs)\.google\.com\/.*$/;
     
     Object.keys(grp).forEach(catKey => {
       grp[catKey].forEach(q => {
@@ -255,7 +337,7 @@
         }
         if(!a || !a.link || a.link.trim() === "") {
           missing.push(`- Link bukti dukung pada soal: "${pertanyaanShort}" belum diisi.`);
-        } else if(!drvRegex.test(a.link.trim())) {
+        } else if(!DRIVE_REGEX.test(a.link.trim())) {
           missing.push(`- Link pada soal: "${pertanyaanShort}" bukan link Google Drive yang valid.`);
         }
         if(!a || !a.sumber_data || a.sumber_data.trim() === "") {
@@ -323,6 +405,65 @@
       document.getElementById('template_id').value = res.template_id || '';
       document.getElementById('folder_id').value = res.folder_id || '';
     }).getFaktorUmum();
+
+    // Load Deadline
+    google.script.run.withSuccessHandler(res => {
+      document.getElementById('deadline_global').value = res.deadline_global || '';
+      try {
+        opdDeadlines = JSON.parse(res.deadline_opd || '{}');
+      } catch (e) {
+        opdDeadlines = {};
+      }
+      renderDeadlineOPD();
+    }).getDeadlineSettings();
+
+    // Load Master OPD for select
+    if (listMasterOPD.length === 0) {
+      google.script.run.withSuccessHandler(opdList => {
+        listMasterOPD = opdList;
+        populateOPDSelect();
+      }).getMasterOPDList();
+    } else {
+      populateOPDSelect();
+    }
+  }
+
+  let opdDeadlines = {};
+
+  function populateOPDSelect() {
+    let sel = document.getElementById('sel_opd_deadline');
+    let h = '<option value="">-- Pilih OPD --</option>';
+    listMasterOPD.forEach(o => h += `<option value="${o}">${o}</option>`);
+    sel.innerHTML = h;
+  }
+
+  function renderDeadlineOPD() {
+    let tbody = document.getElementById('t-opd-deadline-body');
+    let html = '';
+    for (let opd in opdDeadlines) {
+      html += `<tr>
+        <td>${opd}</td>
+        <td>${opdDeadlines[opd].replace('T', ' ')}</td>
+        <td class="text-center"><button class="btn btn-sm btn-danger" onclick="hapusDeadlineOPD('${opd}')"><i class="bi bi-trash"></i></button></td>
+      </tr>`;
+    }
+    if(html === '') html = '<tr><td colspan="3" class="text-center text-muted">Belum ada batas waktu khusus.</td></tr>';
+    tbody.innerHTML = html;
+  }
+
+  function tambahDeadlineOPD() {
+    let opd = document.getElementById('sel_opd_deadline').value;
+    let waktu = document.getElementById('input_opd_deadline').value;
+    if (!opd || !waktu) return Swal.fire('Error', 'Pilih OPD dan tentukan batas waktunya.', 'error');
+    opdDeadlines[opd] = waktu;
+    document.getElementById('sel_opd_deadline').value = '';
+    document.getElementById('input_opd_deadline').value = '';
+    renderDeadlineOPD();
+  }
+
+  function hapusDeadlineOPD(opd) {
+    delete opdDeadlines[opd];
+    renderDeadlineOPD();
   }
   
   function simpanPengaturanUmum() {
@@ -337,9 +478,16 @@
       template_id: document.getElementById('template_id').value,
       folder_id: document.getElementById('folder_id').value
     };
+    const deadlineData = {
+      deadline_global: document.getElementById('deadline_global').value,
+      deadline_opd: JSON.stringify(opdDeadlines)
+    };
+    
+    // OPTIMASI: 1 server call gabungan (dulu 2 sequential)
     Swal.showLoading();
-    google.script.run.withSuccessHandler(res => Swal.fire('Sukses', res, 'success'))
-    .saveFaktorUmum(data);
+    google.script.run.withSuccessHandler(res => {
+      Swal.fire('Sukses', res, 'success');
+    }).saveAllSettings(data, deadlineData);
   }
 
   // Laporan Penilaian

@@ -13,7 +13,9 @@ function prosesLogin(username, password) {
       if (role === "Responden") {
         const js = ss.getSheetByName("Jawaban");
         if(js.getLastRow() > 1) {
-          sudahIsi = js.getDataRange().getValues().some(r => r[1] === nama_opd);
+          // Optimasi: baca hanya kolom B (OPD) daripada seluruh sheet
+          const opdCol = js.getRange(2, 2, js.getLastRow() - 1, 1).getValues();
+          sudahIsi = opdCol.some(r => r[0] === nama_opd);
         }
       }
       return { status: "success", role: role, nama_opd: nama_opd, username: data[i][0], sudahIsi: sudahIsi };

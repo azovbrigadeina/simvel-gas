@@ -1,4 +1,17 @@
 <div id="p-resp" class="hidden">
   <nav class="navbar navbar-dark bg-primary px-4 shadow-sm fixed-top"><span class="navbar-brand small"><i class="bi bi-person-circle"></i> <span id="opd-name"></span></span></nav>
-  <div class="container py-5 mt-4" style="max-width: 850px;" id="f-cont"></div>
+  
+  <div class="container mt-5 pt-4" style="max-width: 850px;">
+    <div id="deadline-banner" class="alert d-none shadow-sm align-items-center d-flex justify-content-between" role="alert">
+      <div>
+        <h6 class="alert-heading fw-bold mb-1"><i class="bi bi-clock-history me-1"></i> Batas Waktu Pengisian</h6>
+        <div id="deadline-text" class="small mb-0">Sedang memuat data waktu...</div>
+      </div>
+      <div class="text-end">
+        <h5 id="deadline-countdown" class="mb-0 fw-bold">-</h5>
+      </div>
+    </div>
+  </div>
+
+  <div class="container pb-5 mt-2" style="max-width: 850px;" id="f-cont"></div>
 </div>
