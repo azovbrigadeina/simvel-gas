@@ -6,6 +6,29 @@
 </head>
 <body>
 
+<!-- Loading Screen Overlay -->
+<div id="loading-screen" class="hidden">
+  <div class="loading-backdrop"></div>
+  <div class="loading-content">
+    <div class="loading-logo-wrap">
+      <div class="loading-logo">
+        <img src="https://i.ibb.co.com/7dW9YHGM/logo-Simvel.png" alt="Logo SimVel" style="max-width: 120px;">
+      </div>
+      <div class="loading-pulse-ring"></div>
+      <div class="loading-pulse-ring" style="animation-delay: 0.5s;"></div>
+    </div>
+    <h3 class="loading-title">SimVel</h3>
+    <p class="loading-subtitle">Sistem Informasi Variabel Umum Daerah</p>
+    <div class="loading-bar-track">
+      <div class="loading-bar-fill"></div>
+    </div>
+    <p class="loading-status" id="loading-status-text">Memverifikasi kredensial...</p>
+    <div class="loading-dots">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+</div>
+
 <?!= include('View_Landing'); ?>
 <?!= include('View_Evaluator'); ?>
 <?!= include('View_Responden'); ?>

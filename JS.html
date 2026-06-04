@@ -34,6 +34,21 @@
     }
   }
 
+  function showLoadingScreen(statusText) {
+    const el = document.getElementById('loading-screen');
+    el.classList.remove('hidden', 'loading-screen-fade-out');
+    if (statusText) document.getElementById('loading-status-text').innerText = statusText;
+  }
+  function updateLoadingStatus(text) {
+    const el = document.getElementById('loading-status-text');
+    if (el) el.innerText = text;
+  }
+  function hideLoadingScreen() {
+    const el = document.getElementById('loading-screen');
+    el.classList.add('loading-screen-fade-out');
+    setTimeout(() => el.classList.add('hidden'), 500);
+  }
+
   function handleLoginSubmit() {
     const u = document.getElementById('login-username').value;
     const p = document.getElementById('login-password').value;
@@ -49,13 +64,19 @@
       if(res.status === "success") {
         sess = res;
         document.getElementById('p-land').classList.add('hidden');
+        
+        // Tampilkan loading screen
+        showLoadingScreen('Login berhasil! Menyiapkan antarmuka...');
+        
         if(res.role === "Responden") {
           if(res.sudahIsi) {
+             hideLoadingScreen();
              Swal.fire('Info', 'Anda sudah melakukan pengisian.', 'info').then(() => location.reload());
              return;
           }
           document.getElementById('p-resp').classList.remove('hidden');
           document.getElementById('opd-name').innerText = res.nama_opd;
+          updateLoadingStatus('Mengambil data pertanyaan dari server...');
           initR();
         } else {
           document.getElementById('sidebar').classList.remove('hidden');
@@ -69,7 +90,10 @@
             document.getElementById('sidebar-title').innerText = "ADMIN";
             document.getElementById('l-user').classList.remove('hidden');
           }
+          updateLoadingStatus('Memuat dashboard monitoring...');
           loadStats();
+          // Evaluator: hide loading screen after content starts loading
+          setTimeout(() => hideLoadingScreen(), 1500);
         }
       } else Swal.fire('Error', res.message, 'error');
     }).prosesLogin(u, p);
@@ -91,7 +115,7 @@
   let deadlineTimerInterval;
 
   function initR() {
-    Swal.showLoading();
+    updateLoadingStatus('Memeriksa batas waktu pengisian...');
     grp = {}; cats = []; parentCat = {};
     
     // Check deadline first
@@ -111,8 +135,8 @@
       startDeadlineTimer(deadlineStr);
       
       // Fetch Pertanyaan
+      updateLoadingStatus('Menyusun formulir pengisian...');
       google.script.run.withSuccessHandler(data => {
-        Swal.close();
         data.forEach(r => {
           let ut = r[1] ? r[1].trim() : "Lainnya";
           let sub = r[2] ? r[2].trim() : "Umum";
@@ -126,6 +150,7 @@
           grp[key].push(r);
         });
         showS(0);
+        hideLoadingScreen();
       }).getPertanyaan(sess.nama_opd);
     }).getDeadlineSettings();
   }
@@ -520,7 +545,7 @@
           <td class="text-start fw-bold">${d.urusan}</td>
           <td>${d.faktor_umum}</td>
           <td>${d.faktor_teknis}</td>
-          <td class="fw-bold fs-5 text-primary">${d.total_akhir}${bonusBadge}</td>
+          <td class="fw-bold fs-5 text-primary">${Number(d.total_akhir).toFixed(2)}${bonusBadge}</td>
           <td>
             <div class="fw-bold">${d.intensitas}</div>
             <span class="badge ${typeColor}">${d.tipe}</span>
@@ -543,7 +568,7 @@
       html: `
         <div class="text-start">
           <p>Urusan: <b>${data.urusan}</b></p>
-          <p>Total Skor: <b class="text-primary fs-4">${data.total_akhir}</b></p>
+          <p>Total Skor: <b class="text-primary fs-4">${Number(data.total_akhir).toFixed(2)}</b></p>
           <hr>
           <p><b>Rekomendasi Wadah:</b></p>
           <ul>

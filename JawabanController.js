@@ -200,7 +200,7 @@ function _computeLaporanNilai(ds, dv, faktorUmumGlobal, excludedBonus) {
       var totalMurni = faktorUmumGlobal + teknis;
       var isExcluded = excludedBonus.includes(urusan.toLowerCase());
       var multiplier = isExcluded ? 1.0 : 1.1;
-      var totalAkhir = totalMurni * multiplier;
+      var totalAkhir = parseFloat((totalMurni * multiplier).toFixed(2));
       var ratingInfo = determineRating(totalAkhir);
 
       laporan.push({

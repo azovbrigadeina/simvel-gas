@@ -113,3 +113,158 @@ function migrateDataToFirebase() {
 
   return "Migrasi Selesai!";
 }
+
+/**
+ * Fungsi Wrapper untuk Push Data secara Interaktif dengan Umpan Balik UI
+ */
+function syncSheetsToFirebaseInteractive() {
+  const ui = SpreadsheetApp.getUi();
+  const response = ui.alert(
+    "Konfirmasi Push Data",
+    "Apakah Anda yakin ingin MENGIRIM seluruh data dari Sheets saat ini untuk menimpa database Firebase?\n\n(Tindakan ini akan menimpa data di Firebase dengan data dari Sheets ini)",
+    ui.ButtonSet.YES_NO
+  );
+  
+  if (response !== ui.Button.YES) return;
+  
+  try {
+    migrateDataToFirebase();
+    ui.alert("Sukses", "Seluruh data Sheets berhasil dikirim dan disinkronkan ke Firebase!", ui.ButtonSet.OK);
+  } catch (e) {
+    ui.alert("Gagal", "Terjadi kesalahan saat sinkronisasi: " + e.message, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Menarik seluruh data Simvel dari Firebase ke Google Sheets
+ */
+function pullFirebaseToSheetsInteractive() {
+  const ui = SpreadsheetApp.getUi();
+  const response = ui.alert(
+    "Konfirmasi Tarik Data (Pull)",
+    "Apakah Anda yakin ingin MENARIK data Simvel dari Firebase ke Sheets?\n\n(Tindakan ini akan menimpa data saat ini)",
+    ui.ButtonSet.YES_NO
+  );
+  
+  if (response !== ui.Button.YES) return;
+  
+  const ss = getSS(); // Simvel menggunakan helper getSS()
+  
+  try {
+    // 1. Pull Users
+    const shUsers = ss.getSheetByName("Users");
+    if (shUsers) {
+      const usersData = Firebase.get("users") || {};
+      const rows = [["Username", "Password", "Role", "Nama_OPD"]];
+      Object.keys(usersData).forEach(k => {
+        const u = usersData[k];
+        rows.push([Firebase.unescapeKey(k), u.password || "", u.role || "", u.nama_opd || ""]);
+      });
+      shUsers.clearContents();
+      shUsers.getRange(1, 1, rows.length, 4).setValues(rows);
+      Logger.log("Users pulled successfully.");
+    }
+
+    // 2. Pull Master OPD
+    const shOPD = ss.getSheetByName("Master_OPD");
+    if (shOPD) {
+      const opdData = Firebase.get("master_opd") || [];
+      const rows = [["Nama OPD"]];
+      opdData.forEach(name => { if (name) rows.push([name]); });
+      shOPD.clearContents();
+      shOPD.getRange(1, 1, rows.length, 1).setValues(rows);
+      Logger.log("Master OPD pulled successfully.");
+    }
+
+    // 3. Pull Master Pertanyaan
+    const shPert = ss.getSheetByName("Master_Pertanyaan");
+    if (shPert) {
+      const pertData = Firebase.get("master_pertanyaan") || {};
+      const rows = [["id_soal", "No", "Urusan", "Pertanyaan", "Indikator Kinerja", "Data Dukung / Output", "Penjelasan Pengisian", "Referensi Aturan/Link", "Bobot"]];
+      Object.keys(pertData).forEach(k => {
+        const p = pertData[k];
+        rows.push([
+          Firebase.unescapeKey(k),
+          p.no || "",
+          p.urusan || "",
+          p.pertanyaan || "",
+          p.indikator || "",
+          p.data_dukung || "",
+          p.penjelasan || "",
+          p.referensi || "",
+          p.bobot || 0
+        ]);
+      });
+      shPert.clearContents();
+      shPert.getRange(1, 1, rows.length, 9).setValues(rows);
+      Logger.log("Master Pertanyaan pulled successfully.");
+    }
+
+    // 4. Pull Jawaban
+    const shJawaban = ss.getSheetByName("Jawaban");
+    if (shJawaban) {
+      const jawData = Firebase.get("jawaban") || {};
+      const rows = [["Timestamp", "Nama OPD", "ID Soal", "Skala Responden", "Link Bukti Dukung", "Pilihan Jawaban", "Nama Dokumen Utama", "Sistem / Nilai Aplikasi", "Sumber Data / Aplikasi Pendukung", "Penjelasan Singkat"]];
+      Object.keys(jawData).forEach(opdEsc => {
+        const opdName = Firebase.unescapeKey(opdEsc);
+        const opdAns = jawData[opdEsc] || {};
+        Object.keys(opdAns).forEach(idSoalEsc => {
+          const ans = opdAns[idSoalEsc] || {};
+          rows.push([
+            ans.timestamp || new Date().toISOString(),
+            opdName,
+            Firebase.unescapeKey(idSoalEsc),
+            ans.skala_responden || "",
+            ans.link || "",
+            ans.pilihan_teks || "",
+            ans.nama_dokumen || "",
+            ans.sistem_nilai || "",
+            ans.sumber_data || "",
+            ans.penjelasan || ""
+          ]);
+        });
+      });
+      shJawaban.clearContents();
+      if (rows.length > 1) {
+        shJawaban.getRange(1, 1, rows.length, 10).setValues(rows);
+      } else {
+        shJawaban.getRange(1, 1, 1, 10).setValues(rows);
+      }
+      Logger.log("Jawaban pulled successfully.");
+    }
+
+    // 5. Pull Verifikasi
+    const shVerif = ss.getSheetByName("Verifikasi");
+    if (shVerif) {
+      const verifData = Firebase.get("verifikasi") || {};
+      const rows = [["Timestamp", "Nama OPD", "ID Soal", "Skala Responden", "Skala Evaluator", "Catatan Evaluator"]];
+      Object.keys(verifData).forEach(opdEsc => {
+        const opdName = Firebase.unescapeKey(opdEsc);
+        const opdVer = verifData[opdEsc] || {};
+        Object.keys(opdVer).forEach(idSoalEsc => {
+          const v = opdVer[idSoalEsc] || {};
+          rows.push([
+            v.timestamp || new Date().toISOString(),
+            opdName,
+            Firebase.unescapeKey(idSoalEsc),
+            v.skala_responden || "",
+            v.skala_evaluator || "",
+            v.catatan_evaluator || ""
+          ]);
+        });
+      });
+      shVerif.clearContents();
+      if (rows.length > 1) {
+        shVerif.getRange(1, 1, rows.length, 6).setValues(rows);
+      } else {
+        shVerif.getRange(1, 1, 1, 6).setValues(rows);
+      }
+      Logger.log("Verifikasi pulled successfully.");
+    }
+
+    ui.alert("Sukses", "Data Simvel berhasil ditarik!", ui.ButtonSet.OK);
+  } catch (e) {
+    ui.alert("Gagal", "Kesalahan: " + e.message, ui.ButtonSet.OK);
+  }
+}
+
