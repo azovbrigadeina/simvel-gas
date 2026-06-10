@@ -49,11 +49,12 @@ function migrateDataToFirebase() {
           data_dukung: r[5] || "",
           penjelasan: r[6] || "",
           referensi: r[7] || "",
-          bobot: Number(r[8] || 0)
+          bobot: r[8] ? r[8].toString().trim() : ""
         };
       }
     });
     Firebase.put("master_pertanyaan", pertObj);
+    Firebase.clearMasterPertanyaanCache();
     Logger.log("Tabel Master Pertanyaan berhasil dimigrasikan.");
   }
 

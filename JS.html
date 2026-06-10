@@ -759,11 +759,15 @@
            html += `<p class="text-muted small">Belum ada OPD yang menjawab soal ini.</p>`;
         } else {
           soal.jawaban_opd.forEach((ans, j) => {
+            if (ans.skala_evaluator === undefined || ans.skala_evaluator === null || ans.skala_evaluator === "") {
+              ans.skala_evaluator = ans.skala_responden;
+            }
             
             let selectOptions = `<option value="">-- Pilih Skor --</option>`;
             labels.forEach((lab, k) => {
               let bbt = weights[k] ? weights[k].trim() : "0";
-              let isSelected = (ans.skala_evaluator.toString() === bbt) ? 'selected' : '';
+              let evalSkorStr = (ans.skala_evaluator !== undefined && ans.skala_evaluator !== null) ? ans.skala_evaluator.toString().trim() : "";
+              let isSelected = (evalSkorStr === bbt) ? 'selected' : '';
               selectOptions += `<option value="${bbt}" ${isSelected}>${lab} (Bobot: ${bbt})</option>`;
             });
 
