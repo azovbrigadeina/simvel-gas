@@ -22,6 +22,42 @@
     document.getElementById('login-form-container').classList.add('hidden');
   }
 
+  function handleLogout() {
+    sess = {};
+    grp = {};
+    cats = [];
+    ans = {};
+    vData = [];
+    
+    // Sembunyikan panel evaluator, responden & sidebar
+    document.getElementById('sidebar').classList.add('hidden');
+    document.getElementById('p-eval').classList.add('hidden');
+    document.getElementById('p-resp').classList.add('hidden');
+    
+    // Reset sidebar items
+    document.getElementById('sidebar-title').innerText = "MONITORING";
+    document.getElementById('l-user').classList.add('hidden');
+    document.getElementById('l-pengaturan').classList.add('hidden');
+    document.getElementById('l-laporan').classList.add('hidden');
+    document.getElementById('l-reset').classList.add('hidden');
+    
+    // Sembunyikan seluruh sub-view evaluator dashboard
+    ['dash','soal','val','user','laporan','pengaturan','reset'].forEach(i => {
+      const vEl = document.getElementById('v-'+i);
+      const lEl = document.getElementById('l-'+i);
+      if(vEl) vEl.classList.add('hidden');
+      if(lEl) lEl.classList.remove('active');
+    });
+    
+    // Set default panel ke dashboard monitoring untuk login berikutnya
+    document.getElementById('v-dash').classList.remove('hidden');
+    document.getElementById('l-dash').classList.add('active');
+    
+    // Tampilkan kembali landing page pilihan peran
+    document.getElementById('p-land').classList.remove('hidden');
+    hideLoginForm();
+  }
+
   function togglePasswordVisibility() {
     const pInput = document.getElementById('login-password');
     const pIcon = document.getElementById('toggle-password');
