@@ -42,6 +42,13 @@ function getPertanyaan(namaOPD) {
     }
   }
 
+  // Urutkan data secara alami (Natural Sort: P1, P2... P9, P10, P100) berdasarkan ID Soal
+  data.sort((a, b) => {
+    const idA = (a[0] || "").toString();
+    const idB = (b[0] || "").toString();
+    return idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' });
+  });
+
   if (!namaOPD) return data; 
 
   const namaLower = namaOPD.toString().toLowerCase().trim();

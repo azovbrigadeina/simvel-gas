@@ -21,6 +21,7 @@ function _loadSharedData(ss) {
         const sub = p.subkat || p.sub_kategori || (p.urusan && !p.urusan.startsWith("A.") && !p.urusan.startsWith("B.") ? p.urusan : "Umum");
         ds.push([Firebase.unescapeKey(id), p.no || p.kategori_utama || "", sub, p.pertanyaan || "", p.indikator || "", p.data_dukung || "", p.penjelasan || "", p.referensi || "", p.bobot || "", p.target || p.target_opd || ""]);
       });
+      ds.sort((a, b) => (a[0] || "").toString().localeCompare((b[0] || "").toString(), undefined, { numeric: true, sensitivity: 'base' }));
     }
 
     const jawabanAll = Firebase.get("jawaban") || {};
