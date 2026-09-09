@@ -7,15 +7,24 @@
  * pembacaan spreadsheet berulang di fungsi-fungsi yang berbeda.
  */
 function _loadSharedData(ss) {
+  if (!ss) ss = getSS();
+  const dsSheet = ss ? ss.getSheetByName("Master_Pertanyaan") : null;
+  let ds = [];
+  if (dsSheet && dsSheet.getLastRow() > 1) {
+    ds = dsSheet.getDataRange().getValues().slice(1);
+  }
+
   if (SETTINGS.USE_FIREBASE) {
-    const masterPertanyaan = Firebase.getCachedMasterPertanyaan();
+    if (ds.length === 0) {
+      const masterPertanyaan = Firebase.getCachedMasterPertanyaan();
+      Object.entries(masterPertanyaan).forEach(([id, p]) => {
+        const sub = p.subkat || p.sub_kategori || (p.urusan && !p.urusan.startsWith("A.") && !p.urusan.startsWith("B.") ? p.urusan : "Umum");
+        ds.push([Firebase.unescapeKey(id), p.no || p.kategori_utama || "", sub, p.pertanyaan || "", p.indikator || "", p.data_dukung || "", p.penjelasan || "", p.referensi || "", p.bobot || ""]);
+      });
+    }
+
     const jawabanAll = Firebase.get("jawaban") || {};
     const verifikasiAll = Firebase.get("verifikasi") || {};
-
-    const ds = [];
-    Object.entries(masterPertanyaan).forEach(([id, p]) => {
-      ds.push([Firebase.unescapeKey(id), p.no, p.urusan, p.pertanyaan, p.indikator, p.data_dukung, p.penjelasan, p.referensi, p.bobot]);
-    });
 
     const dj = [];
     Object.entries(jawabanAll).forEach(([opd, dataOPD]) => {
@@ -36,19 +45,22 @@ function _loadSharedData(ss) {
     return { ds: ds, dj: dj, dv: dv };
   }
 
-  const dsSheet = ss.getSheetByName("Master_Pertanyaan");
   const djSheet = ss.getSheetByName("Jawaban");
   const vSheet = ss.getSheetByName("Verifikasi");
   
   return {
-    ds: dsSheet.getLastRow() > 1 ? dsSheet.getDataRange().getValues().slice(1) : [],
-    dj: djSheet.getLastRow() > 1 ? djSheet.getDataRange().getValues().slice(1) : [],
-    dv: vSheet.getLastRow() > 1 ? vSheet.getDataRange().getValues().slice(1) : []
+    ds: ds,
+    dj: djSheet && djSheet.getLastRow() > 1 ? djSheet.getDataRange().getValues().slice(1) : [],
+    dv: vSheet && vSheet.getLastRow() > 1 ? vSheet.getDataRange().getValues().slice(1) : []
   };
 }
 
 /**
  * Memuat pengaturan faktor umum global (dari sheet Pengaturan_Umum)
+ * dan daftar urusan yang dikecualikan dari bonus (dari PropertiesService).
+ */
+/**
+ * Memuat pengaturan faktor umum global (dari PropertiesService / sheet Pengaturan_Umum)
  * dan daftar urusan yang dikecualikan dari bonus (dari PropertiesService).
  */
 function _loadFaktorUmumGlobal(ss) {
@@ -58,11 +70,18 @@ function _loadFaktorUmumGlobal(ss) {
     const props = PropertiesService.getScriptProperties();
     excludedBonus = (props.getProperty('excluded_bonus_urusan') || "").split(",").map(s => s.trim().toLowerCase());
 
-    const sheetPengaturan = ss.getSheetByName("Pengaturan_Umum");
-    if (sheetPengaturan) {
-      const dataPengaturan = sheetPengaturan.getDataRange().getValues();
-      for (let i = 1; i < dataPengaturan.length; i++) {
-        faktorUmumGlobal += parseFloat(dataPengaturan[i][2]) || 0;
+    const fu1 = parseFloat(props.getProperty('fu_1_val')) || 0;
+    const fu2 = parseFloat(props.getProperty('fu_2_val')) || 0;
+    const fu3 = parseFloat(props.getProperty('fu_3_val')) || 0;
+    faktorUmumGlobal = fu1 + fu2 + fu3;
+
+    if (faktorUmumGlobal === 0 && ss) {
+      const sheetPengaturan = ss.getSheetByName("Pengaturan_Umum");
+      if (sheetPengaturan && sheetPengaturan.getLastRow() > 1) {
+        const dataPengaturan = sheetPengaturan.getDataRange().getValues();
+        for (let i = 1; i < dataPengaturan.length; i++) {
+          faktorUmumGlobal += parseFloat(dataPengaturan[i][2]) || 0;
+        }
       }
     }
   } catch(e) {}
@@ -70,30 +89,34 @@ function _loadFaktorUmumGlobal(ss) {
 }
 
 /**
- * Komputasi statistik sub-kategori menggunakan Map/Set untuk O(1) lookup.
- * Menggantikan nested loop + Array.includes() yang sebelumnya O(n²).
+ * Komputasi statistik sub-kategori / urusan.
+ * Mengabaikan header kategori utama 'A. FAKTOR UMUM' agar daftar urusan murni berdasarkan Urusan Pemerintahan.
  */
 function _computeSubKatStats(ds, dj, dv) {
   var stats = {};
 
-  // Reverse-map: qId → subKategori (O(1) lookup)
   var qIdToSub = {};
   ds.forEach(function(r) {
+    var katUtama = r[1] ? r[1].toString().trim() : "";
     var sub = r[2] ? r[2].toString().trim() : "Umum";
     var qId = r[0].toString();
+    
+    // Jika r[2] masih berisi "A. FAKTOR UMUM" atau "B. FAKTOR TEKNIS", kita lewati atau default ke SubKategori
+    if (sub.toUpperCase().startsWith("A. FAKTOR") || sub.toUpperCase().startsWith("B. FAKTOR")) {
+      return;
+    }
+
     qIdToSub[qId] = sub;
     if (!stats[sub]) {
       stats[sub] = { nama: sub, total_jawaban: 0, total_divalidasi: 0 };
     }
   });
 
-  // Verification Set for O(1) lookup
   var verifSet = {};
   dv.forEach(function(v) {
     verifSet[v[1] + "||" + v[2].toString()] = true;
   });
 
-  // Count Jawaban — O(1) per item (was O(n²))
   dj.forEach(function(j) {
     var qId = j[2].toString();
     var opd = j[1];
@@ -118,19 +141,18 @@ function _computeSubKatStats(ds, dj, dv) {
 }
 
 /**
- * Komputasi jawaban per sub-kategori menggunakan Map untuk O(1) lookup verifikasi.
- * Menggantikan dv.find() yang sebelumnya O(n) per jawaban.
+ * Komputasi jawaban per sub-kategori / urusan.
  */
 function _computeJawabanBySubKategori(subKategori, ds, dj, dv) {
-  // Verification Map for O(1) lookup (was dv.find() = O(n) per call)
   var verifMap = {};
   dv.forEach(function(v) {
     verifMap[v[1] + "||" + v[2].toString()] = v;
   });
 
-  // Filter pertanyaan by Sub Kategori
+  var targetNorm = (subKategori || "").toString().trim().toLowerCase();
   var soalTerkait = ds.filter(function(s) {
-    return (s[2] ? s[2].toString().trim() : "Umum") === subKategori;
+    var sub = s[2] ? s[2].toString().trim().toLowerCase() : "umum";
+    return sub === targetNorm;
   });
 
   return soalTerkait.map(function(soal) {
@@ -179,27 +201,29 @@ function _computeJawabanBySubKategori(subKategori, ds, dj, dv) {
 
 /**
  * Komputasi laporan nilai dari data yang sudah di-load.
- * Menghindari pembacaan ulang spreadsheet.
+ * Menghitung Total Akhir = (Faktor Umum Global + Faktor Teknis) * Multiplier.
  */
 function _computeLaporanNilai(ds, dv, faktorUmumGlobal, excludedBonus) {
-  // Map id_soal -> sub_kategori
   var mapSubKategori = {};
   ds.forEach(function(r) {
     var sub = r[2] ? r[2].toString().trim() : "Umum";
-    mapSubKategori[r[0].toString()] = sub;
+    if (!sub.toUpperCase().startsWith("A. FAKTOR") && !sub.toUpperCase().startsWith("B. FAKTOR")) {
+      mapSubKategori[r[0].toString()] = sub;
+    }
   });
 
-  // Score per OPD per Sub-kategori
   var opdScores = {};
   dv.forEach(function(r) {
     var opd = r[1];
     var idSoal = r[2].toString();
     var skorEval = parseFloat(r[4]) || 0;
 
-    if (!opdScores[opd]) opdScores[opd] = {};
-    var subKat = mapSubKategori[idSoal] || "Umum";
-    if (!opdScores[opd][subKat]) opdScores[opd][subKat] = 0;
-    opdScores[opd][subKat] += skorEval;
+    var subKat = mapSubKategori[idSoal];
+    if (subKat) {
+      if (!opdScores[opd]) opdScores[opd] = {};
+      if (!opdScores[opd][subKat]) opdScores[opd][subKat] = 0;
+      opdScores[opd][subKat] += skorEval;
+    }
   });
 
   var laporan = [];
@@ -207,7 +231,11 @@ function _computeLaporanNilai(ds, dv, faktorUmumGlobal, excludedBonus) {
     for (var urusan in opdScores[opd]) {
       var teknis = opdScores[opd][urusan];
       var totalMurni = faktorUmumGlobal + teknis;
-      var isExcluded = excludedBonus.includes(urusan.toLowerCase());
+      var normUrusan = urusan.toLowerCase().trim();
+      var isExcluded = excludedBonus.some(function(ex) {
+        var normEx = (ex || "").toString().trim().toLowerCase();
+        return normEx !== "" && (normUrusan === normEx || normUrusan.includes(normEx) || normEx.includes(normUrusan));
+      });
       var multiplier = isExcluded ? 1.0 : 1.1;
       var totalAkhir = parseFloat((totalMurni * multiplier).toFixed(2));
       var ratingInfo = determineRating(totalAkhir);
@@ -254,28 +282,33 @@ function simpanSemuaJawaban(payload) {
     const opdEscaped = Firebase.escapeKey(payload.opd);
     const existingJawaban = Firebase.get(`jawaban/${opdEscaped}`) || {};
     const updates = {};
-    payload.jawaban.forEach(item => {
+    (payload.jawaban || []).forEach(item => {
+      if (!item || item.id === undefined || item.id === null) return;
       const escapedId = Firebase.escapeKey(item.id.toString());
       const prevItem = existingJawaban[escapedId] || {};
+      const itemLink = String(item.link || "").trim();
       let linkArsip = prevItem.link_arsip || "";
-      if (item.link && (item.link.trim() !== (prevItem.link || "").trim() || !linkArsip)) {
-        const newArsip = snapshotDriveFolder(payload.opd, item.link);
-        if (newArsip) linkArsip = newArsip;
+      if (!linkArsip && itemLink) {
+        try {
+          linkArsip = snapshotDriveFolder(payload.opd, itemLink) || "";
+        } catch (e) {}
       }
 
       updates[escapedId] = {
         timestamp: ts,
-        skala_responden: item.skala !== "" ? Number(item.skala) : "",
-        link: item.link || "",
+        skala_responden: (item.skala !== "" && item.skala !== undefined && item.skala !== null) ? Number(item.skala) : "",
+        link: itemLink,
         link_arsip: linkArsip,
         pilihan_teks: item.pilihan_teks || "",
         nama_dokumen: item.nama_dokumen || "",
-        sistem_nilai: item.sistem_nilai || "-",
-        sumber_data: item.sumber_data || "-",
-        penjelasan: item.penjelasan || "-"
+        sistem_nilai: item.sistem_nilai !== undefined ? item.sistem_nilai : "-",
+        sumber_data: item.sumber_data !== undefined ? item.sumber_data : "-",
+        penjelasan: item.penjelasan !== undefined ? item.penjelasan : "-"
       };
     });
-    Firebase.patch(`jawaban/${opdEscaped}`, updates);
+    if (Object.keys(updates).length > 0) {
+      Firebase.patch(`jawaban/${opdEscaped}`, updates);
+    }
     Firebase.remove(`jawaban_draft/${opdEscaped}`);
     return "Berhasil";
   }
@@ -725,8 +758,13 @@ function simpanDraftJawaban(payload) {
   if (!payload || !payload.opd) return { status: "error", message: "Nama OPD tidak valid" };
   
   if (SETTINGS.USE_FIREBASE) {
-    const ts = new Date().toISOString();
     const opdEscaped = Firebase.escapeKey(payload.opd);
+    const submitted = Firebase.get(`jawaban/${opdEscaped}`);
+    if (submitted && Object.keys(submitted).length > 0) {
+      return { status: "error", message: "Formulir terkunci: OPD Anda telah mengirimkan jawaban definitif." };
+    }
+
+    const ts = new Date().toISOString();
     const updates = {};
     (payload.jawaban || []).forEach(item => {
       if (item && item.id) {
@@ -752,10 +790,16 @@ function simpanDraftJawaban(payload) {
 }
 
 function getDraftJawaban(opdName) {
-  if (!opdName) return {};
+  if (!opdName) return { draft: {}, isSubmitted: false };
   if (SETTINGS.USE_FIREBASE) {
     const opdEscaped = Firebase.escapeKey(opdName);
-    const draftData = Firebase.get(`jawaban_draft/${opdEscaped}`) || {};
+    const submittedData = Firebase.get(`jawaban/${opdEscaped}`);
+    const isSubmitted = !!(submittedData && Object.keys(submittedData).length > 0);
+
+    let draftData = Firebase.get(`jawaban_draft/${opdEscaped}`);
+    if (!draftData || Object.keys(draftData).length === 0) {
+      draftData = submittedData || {};
+    }
     const result = {};
     Object.entries(draftData).forEach(([idEscaped, j]) => {
       const qId = Firebase.unescapeKey(idEscaped);
@@ -765,14 +809,36 @@ function getDraftJawaban(opdName) {
         link: j.link || "",
         pilihan_teks: j.pilihan_teks || "",
         nama_dokumen: j.nama_dokumen || "",
-        sistem_nilai: j.sistem_nilai || "",
-        sumber_data: j.sumber_data || "",
-        penjelasan: j.penjelasan || ""
+        sistem_nilai: j.sistem_nilai !== undefined ? j.sistem_nilai : "",
+        sumber_data: j.sumber_data !== undefined ? j.sumber_data : "",
+        penjelasan: j.penjelasan !== undefined ? j.penjelasan : ""
       };
     });
-    return result;
+    return { draft: result, isSubmitted: isSubmitted };
   }
-  return {};
+
+  const sheet = getSS().getSheetByName("Jawaban");
+  if (sheet && sheet.getLastRow() > 1) {
+    const data = sheet.getDataRange().getValues().slice(1);
+    const opdRows = data.filter(r => r[1].toString() === opdName);
+    const isSubmitted = opdRows.length > 0;
+    const result = {};
+    opdRows.forEach(r => {
+      const qId = r[2].toString();
+      result[qId] = {
+        id: qId,
+        skala: r[3],
+        link: r[4],
+        pilihan_teks: r[5],
+        nama_dokumen: r[6],
+        sistem_nilai: r[7],
+        sumber_data: r[8],
+        penjelasan: r[9]
+      };
+    });
+    return { draft: result, isSubmitted: isSubmitted };
+  }
+  return { draft: {}, isSubmitted: false };
 }
 
 

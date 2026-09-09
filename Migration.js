@@ -41,9 +41,13 @@ function migrateDataToFirebase() {
     data.forEach(r => {
       if (r[0]) {
         const idSoal = Firebase.escapeKey(r[0].toString().trim());
+        const katUtama = r[1] ? r[1].toString().trim() : "";
+        const urusanSub = r[2] ? r[2].toString().trim() : "Umum";
         pertObj[idSoal] = {
-          no: r[1] || "",
-          urusan: r[2] ? r[2].toString().trim() : "Umum",
+          no: katUtama,
+          kategori_utama: katUtama,
+          urusan: urusanSub,
+          subkat: urusanSub,
           pertanyaan: r[3] || "",
           indikator: r[4] || "",
           data_dukung: r[5] || "",

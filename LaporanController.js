@@ -48,13 +48,15 @@ function buatLaporanUrusan(namaUrusan, format) {
   avgFT = (avgFT / laporanUrusan.length).toFixed(2);
   avgTotal = (avgTotal / laporanUrusan.length).toFixed(2);
   
+  const ratingInfo = determineRating(parseFloat(avgTotal));
+  
   body.replaceText("{{NAMA_URUSAN}}", namaUrusan);
   body.replaceText("{{TANGGAL_CETAK}}", dateStr);
   body.replaceText("{{TOTAL_NILAI_FU}}", avgFU.toString());
   body.replaceText("{{TOTAL_NILAI_FT}}", avgFT.toString());
   body.replaceText("{{TOTAL_AKHIR}}", avgTotal.toString());
-  body.replaceText("{{INTENSITAS}}", "-");
-  body.replaceText("{{TIPE_PD}}", "-");
+  body.replaceText("{{INTENSITAS}}", ratingInfo.intensitas);
+  body.replaceText("{{TIPE_PD}}", ratingInfo.tipe);
   
   // --- TABEL 1: FAKTOR UMUM ---
   // Cari baris yang mengandung {{FU_NO}}

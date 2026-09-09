@@ -157,13 +157,6 @@
     showLoadingScreen('Menyiapkan antarmuka...');
 
     if(res.role === "Responden") {
-      if(res.sudahIsi) {
-         hideLoadingScreen();
-         Swal.fire('Info', 'Anda sudah melakukan pengisian.', 'info').then(() => {
-           handleLogout();
-         });
-         return;
-      }
       document.getElementById('p-resp').classList.remove('hidden');
       document.getElementById('opd-name').innerText = res.nama_opd;
       updateLoadingStatus('Mengambil data pertanyaan dari server...');
@@ -248,11 +241,12 @@
   let parentCat = {};
 
   let isDeadlinePassed = false;
+  let isOPDSudahKirim = false;
   let deadlineTimerInterval;
 
   function initR() {
     updateLoadingStatus('Memeriksa batas waktu pengisian...');
-    grp = {}; cats = []; parentCat = {};
+    grp = {}; cats = []; parentCat = {}; isOPDSudahKirim = false;
     
     // Check deadline first
     google.script.run.withSuccessHandler(res => {
@@ -278,8 +272,22 @@
         if (dStr) localDraft = JSON.parse(dStr);
       } catch(e) {}
 
-      google.script.run.withSuccessHandler(serverDraft => {
-        ans = Object.assign({}, serverDraft || {}, localDraft || {});
+      google.script.run.withSuccessHandler(resDraft => {
+        let serverDraft = {};
+        if (resDraft && typeof resDraft === 'object' && resDraft.hasOwnProperty('isSubmitted')) {
+          serverDraft = resDraft.draft || {};
+          isOPDSudahKirim = !!resDraft.isSubmitted;
+        } else {
+          serverDraft = resDraft || {};
+          isOPDSudahKirim = false;
+        }
+
+        if (isOPDSudahKirim) {
+          ans = Object.assign({}, serverDraft);
+          try { localStorage.removeItem('simvel_draft_' + sess.nama_opd); } catch(e) {}
+        } else {
+          ans = Object.assign({}, serverDraft || {}, localDraft || {});
+        }
 
         // Fetch Pertanyaan
         updateLoadingStatus('Menyusun formulir pengisian...');
@@ -299,7 +307,19 @@
           showS(0);
           hideLoadingScreen();
 
-          if (Object.keys(ans).length > 0) {
+          if (isOPDSudahKirim) {
+            const Toast = Swal.mixin({
+              toast: true,
+              position: 'top-end',
+              showConfirmButton: false,
+              timer: 4000,
+              timerProgressBar: true
+            });
+            Toast.fire({
+              icon: 'info',
+              title: 'Formulir Terkunci: Jawaban telah dikirim sebelumnya.'
+            });
+          } else if (Object.keys(ans).length > 0) {
             const Toast = Swal.mixin({
               toast: true,
               position: 'top-end',
@@ -378,15 +398,24 @@
     const key = cats[idx], qs = grp[key], cont = document.getElementById('f-cont');
     const katInfo = parentCat[key];
     
-    let h = `
+    let dis = (isDeadlinePassed || isOPDSudahKirim) ? 'disabled' : '';
+
+    let lockedBanner = isOPDSudahKirim ? `
+      <div class="alert alert-info border-start border-4 border-info shadow-sm p-3 mb-4 rounded-3 d-flex align-items-center">
+        <i class="bi bi-lock-fill fs-2 text-info me-3"></i>
+        <div>
+          <h5 class="fw-bold mb-1 text-info">Formulir Terkunci (Jawaban Telah Terkirim)</h5>
+          <p class="mb-0 small text-dark">OPD <strong>${sess.nama_opd}</strong> telah resmi mengirimkan jawaban. Formulir dalam mode <em>hanya lihat (read-only)</em> dan tidak dapat diubah kembali kecuali dilakukan <strong>Reset Jawaban</strong> oleh Administrator.</p>
+        </div>
+      </div>` : '';
+    
+    let h = lockedBanner + `
       <div class="p-3 mb-4 bg-primary text-white rounded shadow-sm text-center">
         <h4 class="fw-bold mb-1 text-uppercase">${katInfo.utama}</h4>
         <div class="badge bg-light text-primary fs-6 px-3 py-2 mt-1 shadow-sm">
           Sub: ${katInfo.subkat}
         </div>
       </div>`;
-    
-    let dis = isDeadlinePassed ? 'disabled' : '';
 
     qs.forEach(q => {
       const s = ans[q[0]] || {id: q[0], skala:"", link:"", pilihan_teks: "", nama_dokumen: "", sistem_nilai: "", sumber_data: "", penjelasan: ""};
@@ -444,13 +473,14 @@
     });
 
     let btnLanjutKirim = idx < cats.length - 1 ? 'LANJUT' : 'KIRIM JAWABAN';
-    let hideKirim = (isDeadlinePassed && idx === cats.length - 1) ? 'd-none' : '';
+    let hideKirim = ((isDeadlinePassed || isOPDSudahKirim) && idx === cats.length - 1) ? 'd-none' : '';
+    let disDraft = (isDeadlinePassed || isOPDSudahKirim) ? 'disabled' : '';
 
     h += `
     <div class="d-flex justify-content-between align-items-center pb-5 mt-4 flex-wrap gap-2">
       <button class="btn btn-secondary px-4" onclick="showS(${idx-1})" ${idx===0?'disabled':''}>KEMBALI</button>
       <div>
-        <button class="btn btn-outline-warning text-dark px-4 fw-bold me-2" onclick="simpanDrafManual()" title="Simpan isian sementara tanpa mengirim akhir" ${isDeadlinePassed ? 'disabled' : ''}>
+        <button class="btn btn-outline-warning text-dark px-4 fw-bold me-2 ${isOPDSudahKirim ? 'd-none' : ''}" onclick="simpanDrafManual()" title="Simpan isian sementara tanpa mengirim akhir" ${disDraft}>
           <i class="bi bi-bookmark-check-fill me-1"></i> SIMPAN DRAF
         </button>
         <button id="btn-kirim-ans" class="btn btn-primary px-5 fw-bold ${hideKirim}" onclick="${idx<cats.length-1?`showS(${idx+1})`:`finS()`}">
@@ -462,6 +492,7 @@
   }
 
   function autoSaveDraftLocal() {
+    if (isOPDSudahKirim) return;
     try {
       if (sess && sess.nama_opd) {
         localStorage.setItem('simvel_draft_' + sess.nama_opd, JSON.stringify(ans));
@@ -495,6 +526,8 @@
         title: 'Draf isian berhasil disimpan!',
         text: 'Anda dapat melanjutkan pengisian kapan saja.'
       });
+    }).withFailureHandler(err => {
+      Swal.fire('Gagal', 'Gagal menyimpan draf: ' + (err.message || err), 'error');
     }).simpanDraftJawaban({ opd: sess.nama_opd, jawaban: payloadJawaban });
   }
 
@@ -559,26 +592,26 @@
       grp[catKey].forEach(q => {
         const qId = q[0];
         const a = ans[qId];
-        const pertanyaanShort = q[3].substring(0, 50) + "...";
+        const pertanyaanShort = String(q[3] || "Soal").substring(0, 50) + "...";
         
         if(!a || !a.pilihan_teks) {
           missing.push(`- Pilihan jawaban pada soal: "${pertanyaanShort}" belum dipilih.`);
         }
-        if(!a || !a.sistem_nilai || a.sistem_nilai.trim() === "") {
+        if(!a || a.sistem_nilai === undefined || a.sistem_nilai === null || String(a.sistem_nilai).trim() === "") {
           missing.push(`- Sistem (Nilai) pada soal: "${pertanyaanShort}" belum diisi.`);
         }
-        if(!a || !a.nama_dokumen || a.nama_dokumen.trim() === "") {
+        if(!a || !a.nama_dokumen || String(a.nama_dokumen).trim() === "") {
           missing.push(`- Data dokumen pendukung pada soal: "${pertanyaanShort}" belum diisi.`);
         }
-        if(!a || !a.link || a.link.trim() === "") {
+        if(!a || !a.link || String(a.link).trim() === "") {
           missing.push(`- Link bukti dukung pada soal: "${pertanyaanShort}" belum diisi.`);
-        } else if(!DRIVE_REGEX.test(a.link.trim())) {
+        } else if(!DRIVE_REGEX.test(String(a.link).trim())) {
           missing.push(`- Link pada soal: "${pertanyaanShort}" bukan link Google Drive yang valid.`);
         }
-        if(!a || !a.sumber_data || a.sumber_data.trim() === "") {
+        if(!a || !a.sumber_data || String(a.sumber_data).trim() === "") {
           missing.push(`- Sumber Data & Tahun Data pada soal: "${pertanyaanShort}" belum diisi.`);
         }
-        if(!a || !a.penjelasan || a.penjelasan.trim() === "") {
+        if(!a || !a.penjelasan || String(a.penjelasan).trim() === "") {
           missing.push(`- Penjelasan pada soal: "${pertanyaanShort}" belum diisi.`);
         }
       });
@@ -586,36 +619,88 @@
     
     if(missing.length > 0) {
       Swal.fire({
-        title: 'Lengkapi Data!',
-        html: `<div class="text-start small" style="max-height: 300px; overflow-y: auto;">
-                <p class="fw-bold text-danger">Masih terdapat data yang belum lengkap atau tidak valid:</p>
+        title: 'Data Belum Lengkap',
+        html: `<div class="text-start small" style="max-height: 250px; overflow-y: auto;">
+                <p class="fw-bold text-warning"><i class="bi bi-exclamation-triangle-fill me-1"></i> Terdapat ${missing.length} data yang belum diisi/valid:</p>
                 ${missing.join('<br>')}
-               </div>`,
-        icon: 'warning'
+               </div>
+               <p class="mt-3 small text-muted">Apakah Anda tetap ingin mengirim jawaban yang sudah terisi?</p>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Tetap Kirim Jawaban',
+        cancelButtonText: 'Lengkapi Dulu',
+        confirmButtonColor: '#0d6efd',
+        cancelButtonColor: '#6c757d'
+      }).then(r => {
+        if(r.isConfirmed) {
+          executeSubmitJawaban();
+        }
       });
-      return;
+    } else {
+      Swal.fire({
+        title: 'Kirim Jawaban Sekarang?',
+        text: 'Pastikan semua data sudah benar. Setelah dikirim, data jawaban akan tersimpan secara definitif ke sistem.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Ya, Kirim Sekarang',
+        cancelButtonText: 'Batal',
+        confirmButtonColor: '#0d6efd',
+        cancelButtonColor: '#6c757d'
+      }).then(r => {
+        if(r.isConfirmed) {
+          executeSubmitJawaban();
+        }
+      });
     }
+  }
 
-    Swal.fire({title:'Kirim Sekarang?', text:'Pastikan semua data sudah benar.', icon:'question', showCancelButton:true}).then(r => {
-      if(r.isConfirmed) {
-        Swal.showLoading();
-        google.script.run.withSuccessHandler(() => {
-          try {
-            localStorage.removeItem('simvel_draft_' + sess.nama_opd);
-          } catch(e) {}
-          Swal.fire({
-            title: 'Data Berhasil Terkirim',
-            text: 'Data sudah terkirim. Jika ada kendala, hubungi Bagian Organisasi Setda Kabupaten Muaro Jambi. Terima kasih.',
-            icon: 'success',
-            confirmButtonText: 'Saya Mengerti',
-            confirmButtonColor: '#0d6efd',
-            allowOutsideClick: false
-          }).then(() => location.reload());
-        }).withFailureHandler(err => {
-          Swal.fire('Gagal', 'Gagal mengirim data: ' + (err.message || err), 'error');
-        }).simpanSemuaJawaban({opd: sess.nama_opd, jawaban: Object.values(ans)});
-      }
+  function executeSubmitJawaban() {
+    // Show Loading Screen
+    Swal.fire({
+      title: 'Proses Menyimpan Data...',
+      html: `
+        <div class="py-3">
+          <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="fw-bold text-dark mb-1">Sistem sedang menyimpan data jawaban Anda ke server...</p>
+          <p class="small text-muted mb-0">Mohon tidak menutup atau memuat ulang halaman ini selama proses berlangsung.</p>
+        </div>
+      `,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showConfirmButton: false
     });
+
+    google.script.run.withSuccessHandler(() => {
+      try {
+        localStorage.removeItem('simvel_draft_' + sess.nama_opd);
+      } catch(e) {}
+
+      Swal.fire({
+        title: 'Data Berhasil Terkirim!',
+        html: `
+          <div class="text-center py-2">
+            <i class="bi bi-check-circle-fill text-success display-1 mb-3"></i>
+            <h5 class="fw-bold text-dark">Terima Kasih!</h5>
+            <p class="text-secondary">Data jawaban OPD Anda telah <strong>berhasil diterima dan tersimpan</strong> dalam sistem SIMVEL.</p>
+            <hr>
+            <p class="small text-muted mb-0">Jika ada kendala atau perubahan data, silakan hubungi <strong>Bagian Organisasi Setda Kabupaten Muaro Jambi</strong>.</p>
+          </div>
+        `,
+        icon: 'success',
+        confirmButtonText: 'Saya Mengerti',
+        confirmButtonColor: '#0d6efd',
+        allowOutsideClick: false
+      }).then(() => location.reload());
+    }).withFailureHandler(err => {
+      Swal.fire({
+        title: 'Gagal Menyimpan Data',
+        text: 'Gagal mengirim data: ' + (err.message || err),
+        icon: 'error',
+        confirmButtonText: 'Coba Lagi'
+      });
+    }).simpanSemuaJawaban({opd: sess.nama_opd, jawaban: Object.values(ans)});
   }
 
   function showV(v) {
@@ -913,9 +998,25 @@
   }
 
   // Validasi by Sub Kategori
+  function filterUrusanTable(query) {
+    const q = (query || "").toLowerCase();
+    const rows = document.querySelectorAll('#val-subkat-list tr');
+    rows.forEach(row => {
+      const text = row.innerText.toLowerCase();
+      if (text.includes(q)) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+  }
+
   function loadSubKat() {
     document.getElementById('val-subkat-view').classList.remove('hidden');
     document.getElementById('val-form-view').classList.add('hidden');
+    const searchInput = document.getElementById('search-urusan-input');
+    if (searchInput) searchInput.value = '';
+
     Swal.showLoading();
     google.script.run.withSuccessHandler(res => {
       Swal.close();
@@ -935,22 +1036,24 @@
            statusBadge = '<span class="badge bg-secondary">Belum ada data</span>';
            btnClass = 'btn-outline-secondary';
         } else if (s.total_divalidasi >= s.total_jawaban) {
-           statusBadge = '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Selesai</span>';
+           statusBadge = '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i> Selesai</span>';
            btnClass = 'btn-success';
         } else {
-           statusBadge = `<span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Validasi: ${s.total_divalidasi}/${s.total_jawaban}</span>`;
+           statusBadge = `<span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i> Validasi: ${s.total_divalidasi}/${s.total_jawaban}</span>`;
         }
         
         h += `
         <tr>
-          <td class="fw-bold">${s.nama}</td>
+          <td class="fw-bold text-primary"><i class="bi bi-folder2-open me-2 text-secondary"></i>${s.nama}</td>
           <td>${statusBadge}</td>
           <td class="text-end">
-            <button class="btn ${btnClass} btn-sm fw-bold" onclick="muatValidasi('${s.nama}')">BUKA VALIDASI</button>
+            <button class="btn ${btnClass} btn-sm fw-bold px-3" onclick="muatValidasi('${s.nama.replace(/'/g, "\\'")}')"><i class="bi bi-pencil-square me-1"></i> BUKA VALIDASI</button>
           </td>
         </tr>`;
       });
       document.getElementById('val-subkat-list').innerHTML = h;
+    }).withFailureHandler(err => {
+      Swal.fire('Error', 'Gagal memuat daftar urusan: ' + (err.message || err), 'error');
     }).getSubKategoriStats();
   }
 
@@ -1199,7 +1302,7 @@
     currentActiveSubKat = subKat;
     document.getElementById('val-subkat-view').classList.add('hidden');
     document.getElementById('val-form-view').classList.remove('hidden');
-    document.getElementById('val-active-subkat').innerText = `Validasi: ${subKat}`;
+    document.getElementById('val-active-subkat').innerText = `Validasi Urusan: ${subKat}`;
     
     const switchEl = document.getElementById('switch-link-asli');
     if (switchEl) switchEl.checked = showLinkAsli;
@@ -1374,5 +1477,56 @@
         .hapusUser(uname);
       }
     });
+  }
+
+  function showModalTambahSoal() {
+    document.getElementById('tsoal-id').value = "";
+    document.getElementById('tsoal-kategori').value = "";
+    document.getElementById('tsoal-subkategori').value = "";
+    document.getElementById('tsoal-target').value = "";
+    document.getElementById('tsoal-pertanyaan').value = "";
+    document.getElementById('tsoal-bobot').value = "100|80|60|40|20";
+    const mEl = document.getElementById('modalTambahSoal');
+    if (mEl) {
+      const modal = new bootstrap.Modal(mEl);
+      modal.show();
+    }
+  }
+
+  function simpanSoalBaruAction() {
+    const kat = document.getElementById('tsoal-kategori').value.trim();
+    const subkat = document.getElementById('tsoal-subkategori').value.trim();
+    const pert = document.getElementById('tsoal-pertanyaan').value.trim();
+    const id = document.getElementById('tsoal-id').value.trim();
+    const bobot = document.getElementById('tsoal-bobot').value.trim();
+    const target = document.getElementById('tsoal-target').value.trim();
+
+    if (!kat || !subkat || !pert) {
+      Swal.fire('Peringatan', 'Kategori, Sub Kategori, dan Pertanyaan Wajib Diisi!', 'warning');
+      return;
+    }
+
+    const payload = {
+      id: id,
+      kategori: kat,
+      subKategori: subkat,
+      pertanyaan: pert,
+      bobot: bobot || "100|80|60|40|20",
+      targetOPD: target
+    };
+
+    Swal.showLoading();
+    google.script.run.withSuccessHandler(res => {
+      Swal.close();
+      const mEl = document.getElementById('modalTambahSoal');
+      if (mEl) {
+        const modal = bootstrap.Modal.getInstance(mEl);
+        if (modal) modal.hide();
+      }
+      Swal.fire('Sukses', 'Soal baru berhasil ditambahkan!', 'success');
+      loadSoal();
+    }).withFailureHandler(err => {
+      Swal.fire('Gagal', (err && err.message) ? err.message : 'Gagal menyimpan soal baru', 'error');
+    }).tambahSoal(payload);
   }
 </script>

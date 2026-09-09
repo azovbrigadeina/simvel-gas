@@ -45,7 +45,12 @@
   </div>
 
   <div id="v-soal" class="hidden">
-    <h4 class="fw-bold mb-4">Kelola Soal</h4>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h4 class="fw-bold m-0">Kelola Soal</h4>
+      <button class="btn btn-primary fw-bold shadow-sm" onclick="showModalTambahSoal()">
+        <i class="bi bi-plus-circle-fill me-1"></i> Tambah Soal Baru
+      </button>
+    </div>
     <div class="table-responsive bg-white p-3 rounded shadow-sm">
       <table class="table table-sm align-middle">
         <thead><tr><th>ID</th><th>Kategori Utama (B)</th><th>Sub Kategori (C)</th><th>Pertanyaan (D)</th><th>Bobot (I)</th><th>Target OPD (J)</th></tr></thead>
@@ -55,16 +60,30 @@
   </div>
 
   <div id="v-val" class="hidden">
-    <h4 class="fw-bold mb-4">Validasi Nilai (Berdasarkan Sub Kategori)</h4>
+    <h4 class="fw-bold mb-4">Validasi Nilai (Berdasarkan Urusan Pemerintahan)</h4>
     
-    <!-- View 1: List of Sub Kategori -->
+    <!-- View 1: List of Urusan -->
     <div id="val-subkat-view">
+      <div class="card p-3 mb-4 border-0 shadow-sm">
+        <div class="row g-2 align-items-center">
+          <div class="col-md-8">
+            <div class="input-group">
+              <span class="input-group-text bg-white text-muted"><i class="bi bi-search"></i></span>
+              <input type="text" id="search-urusan-input" class="form-control" placeholder="Cari Urusan Pemerintahan..." onkeyup="filterUrusanTable(this.value)">
+            </div>
+          </div>
+          <div class="col-md-4 text-end">
+            <button class="btn btn-outline-primary w-100 fw-bold" onclick="loadSubKat()"><i class="bi bi-arrow-repeat me-1"></i> Refresh Daftar Urusan</button>
+          </div>
+        </div>
+      </div>
+
       <div class="table-responsive bg-white p-3 rounded shadow-sm">
         <table class="table table-sm align-middle table-hover text-start">
           <thead class="table-light">
             <tr>
-              <th>Sub Kategori</th>
-              <th>Status Validasi</th>
+              <th>Urusan Pemerintahan</th>
+              <th>Status Validasi OPD</th>
               <th class="text-end">Aksi</th>
             </tr>
           </thead>
@@ -79,8 +98,8 @@
     <div id="val-form-view" class="hidden">
       <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom">
         <div>
-          <button class="btn btn-outline-secondary btn-sm" onclick="kembaliKeDaftarValidasi()"><i class="bi bi-arrow-left"></i> Kembali ke Daftar</button>
-          <h5 class="fw-bold mt-2 mb-0 d-inline-block ms-2 align-middle" id="val-active-subkat"></h5>
+          <button class="btn btn-outline-secondary btn-sm" onclick="kembaliKeDaftarValidasi()"><i class="bi bi-arrow-left"></i> Kembali ke Daftar Urusan</button>
+          <h5 class="fw-bold mt-2 mb-0 d-inline-block ms-2 align-middle text-primary" id="val-active-subkat"></h5>
         </div>
         <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0">
           <div class="form-check form-switch m-0 align-middle">
@@ -204,4 +223,55 @@
       </table>
     </div>
   </div>
+
+  <!-- Modal Tambah Soal Baru -->
+  <div class="modal fade" id="modalTambahSoal" tabindex="-1" aria-labelledby="modalTambahSoalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title fw-bold" id="modalTambahSoalLabel"><i class="bi bi-plus-circle me-2"></i>Tambah Soal Baru</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="form-tambah-soal">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-bold small">ID Soal (Opsional)</label>
+                <input type="text" id="tsoal-id" class="form-control" placeholder="Contoh: Q12 (Kosongkan utk auto)">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold small">Kategori Utama (Kolom B)</label>
+                <input type="text" id="tsoal-kategori" class="form-control" placeholder="Contoh: TATA KELOLA KEUANGAN" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold small">Sub Kategori (Kolom C)</label>
+                <input type="text" id="tsoal-subkategori" class="form-control" placeholder="Contoh: Pengelolaan Aset" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold small">Target OPD (Kolom J)</label>
+                <input type="text" id="tsoal-target" class="form-control" placeholder="Kosongkan jika untuk semua OPD atau BPKAD, Dinkes">
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-bold small">Pertanyaan (Kolom D)</label>
+                <textarea id="tsoal-pertanyaan" class="form-control" rows="3" placeholder="Tuliskan isi pertanyaan kuesioner..." required></textarea>
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-bold small">Bobot Nilai (A|B|C|D|E) (Kolom I)</label>
+                <input type="text" id="tsoal-bobot" class="form-control" placeholder="Default: 100|80|60|40|20" value="100|80|60|40|20">
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Batal</button>
+          <button type="button" class="btn btn-primary px-4 fw-bold" onclick="simpanSoalBaruAction()">Simpan Soal</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="text-center py-4 mt-auto small text-muted">
+    Made with <span style="color: #e25555;">❤️</span> by <strong>Bagian Organisasi Setda Kab. Muaro Jambi</strong>
+  </footer>
 </div>
