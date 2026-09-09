@@ -1,5 +1,10 @@
 <div id="p-resp" class="hidden">
-  <nav class="navbar navbar-dark bg-primary px-4 shadow-sm fixed-top"><span class="navbar-brand small"><i class="bi bi-person-circle"></i> <span id="opd-name"></span></span></nav>
+  <nav class="navbar navbar-dark bg-primary px-4 shadow-sm fixed-top d-flex justify-content-between align-items-center">
+    <span class="navbar-brand small mb-0"><i class="bi bi-building me-1"></i> <span id="opd-name" class="fw-bold"></span></span>
+    <button class="btn btn-outline-light btn-sm fw-bold" onclick="handleLogout()" title="Keluar dari sesi Responden">
+      <i class="bi bi-box-arrow-left me-1"></i> Logout
+    </button>
+  </nav>
   
   <div class="container mt-5 pt-4" style="max-width: 850px;">
     <div id="deadline-banner" class="alert d-none shadow-sm align-items-center d-flex justify-content-between" role="alert">
