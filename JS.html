@@ -22,7 +22,64 @@
     document.getElementById('login-form-container').classList.add('hidden');
   }
 
+  const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 Menit
+  let idleCheckerTimer = null;
+  let lastTouchTime = 0;
+
+  function updateLastActivity() {
+    if (!sess || sess.status !== "success") return;
+    const now = Date.now();
+    sess.last_activity = now;
+    try {
+      localStorage.setItem('simvel_session', JSON.stringify(sess));
+    } catch(e) {}
+  }
+
+  function handleUserActivity() {
+    const now = Date.now();
+    if (now - lastTouchTime > 10000) { // Throttling: maks update sekali tiap 10 detik
+      lastTouchTime = now;
+      updateLastActivity();
+    }
+  }
+
+  function startIdleChecker() {
+    stopIdleChecker();
+    idleCheckerTimer = setInterval(() => {
+      checkIdleSession();
+    }, 30000); // Cek setiap 30 detik
+  }
+
+  function stopIdleChecker() {
+    if (idleCheckerTimer) {
+      clearInterval(idleCheckerTimer);
+      idleCheckerTimer = null;
+    }
+  }
+
+  function checkIdleSession() {
+    try {
+      const savedSessStr = localStorage.getItem('simvel_session');
+      if (!savedSessStr) return;
+      const savedSess = JSON.parse(savedSessStr);
+      if (savedSess && savedSess.last_activity) {
+        const diff = Date.now() - savedSess.last_activity;
+        if (diff >= IDLE_TIMEOUT_MS) {
+          stopIdleChecker();
+          handleLogout();
+          Swal.fire({
+            icon: 'warning',
+            title: 'Sesi Berakhir',
+            text: 'Sesi login Anda telah berakhir otomatis karena tidak ada aktivitas selama 30 menit.',
+            confirmButtonText: 'OK'
+          });
+        }
+      }
+    } catch(e) {}
+  }
+
   function handleLogout() {
+    stopIdleChecker();
     sess = {};
     grp = {};
     cats = [];
@@ -90,9 +147,11 @@
 
   function applySession(res) {
     sess = res;
+    sess.last_activity = Date.now();
     try {
-      localStorage.setItem('simvel_session', JSON.stringify(res));
+      localStorage.setItem('simvel_session', JSON.stringify(sess));
     } catch(e) {}
+    startIdleChecker();
 
     document.getElementById('p-land').classList.add('hidden');
     showLoadingScreen('Menyiapkan antarmuka...');
@@ -149,13 +208,27 @@
     }).prosesLogin(u, p);
   }
 
-  // Restore persistent session on page refresh
+  // Restore persistent session on page refresh & listen to activity
   document.addEventListener('DOMContentLoaded', function () {
+    ['mousemove', 'keydown', 'click', 'touchstart', 'scroll'].forEach(evt => {
+      window.addEventListener(evt, handleUserActivity, { passive: true });
+    });
+
     try {
       const savedSessStr = localStorage.getItem('simvel_session');
       if (savedSessStr) {
         const savedSess = JSON.parse(savedSessStr);
         if (savedSess && savedSess.status === "success" && savedSess.role) {
+          const lastAct = savedSess.last_activity || Date.now();
+          if (Date.now() - lastAct >= IDLE_TIMEOUT_MS) {
+            localStorage.removeItem('simvel_session');
+            Swal.fire({
+              icon: 'warning',
+              title: 'Sesi Berakhir',
+              text: 'Sesi login Anda telah berakhir otomatis karena tidak ada aktivitas selama 30 menit.'
+            });
+            return;
+          }
           applySession(savedSess);
         }
       }
