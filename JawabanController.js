@@ -6,65 +6,42 @@
  * Memuat data dari 3 sheet utama sekaligus untuk menghindari
  * pembacaan spreadsheet berulang di fungsi-fungsi yang berbeda.
  */
-function _loadSharedData(ss) {
-  if (!ss) ss = getSS();
-  const dsSheet = ss ? ss.getSheetByName("Master_Pertanyaan") : null;
-  let ds = [];
-  if (dsSheet && dsSheet.getLastRow() > 1) {
-    ds = dsSheet.getDataRange().getValues().slice(1);
-  }
+function _loadSharedData() {
+  const ds = [];
+  const masterPertanyaan = Firebase.getCachedMasterPertanyaan() || {};
+  Object.entries(masterPertanyaan).forEach(([id, p]) => {
+    const sub = p.subkat || p.sub_kategori || (p.urusan && !p.urusan.startsWith("A.") && !p.urusan.startsWith("B.") ? p.urusan : "Umum");
+    ds.push([Firebase.unescapeKey(id), p.no || p.kategori_utama || "", sub, p.pertanyaan || "", p.indikator || "", p.data_dukung || "", p.penjelasan || "", p.referensi || "", p.bobot || "", p.target || p.target_opd || ""]);
+  });
+  ds.sort((a, b) => (a[0] || "").toString().localeCompare((b[0] || "").toString(), undefined, { numeric: true, sensitivity: 'base' }));
 
-  if (SETTINGS.USE_FIREBASE) {
-    if (ds.length === 0) {
-      const masterPertanyaan = Firebase.getCachedMasterPertanyaan();
-      Object.entries(masterPertanyaan).forEach(([id, p]) => {
-        const sub = p.subkat || p.sub_kategori || (p.urusan && !p.urusan.startsWith("A.") && !p.urusan.startsWith("B.") ? p.urusan : "Umum");
-        ds.push([Firebase.unescapeKey(id), p.no || p.kategori_utama || "", sub, p.pertanyaan || "", p.indikator || "", p.data_dukung || "", p.penjelasan || "", p.referensi || "", p.bobot || "", p.target || p.target_opd || ""]);
-      });
-      ds.sort((a, b) => (a[0] || "").toString().localeCompare((b[0] || "").toString(), undefined, { numeric: true, sensitivity: 'base' }));
-    }
+  const jawabanAll = Firebase.get("jawaban") || {};
+  const verifikasiAll = Firebase.get("verifikasi") || {};
 
-    const jawabanAll = Firebase.get("jawaban") || {};
-    const verifikasiAll = Firebase.get("verifikasi") || {};
-
-    const dj = [];
-    Object.entries(jawabanAll).forEach(([opd, dataOPD]) => {
-      const rawOPD = Firebase.unescapeKey(opd);
-      Object.entries(dataOPD || {}).forEach(([id, j]) => {
-        dj.push([j.timestamp, rawOPD, Firebase.unescapeKey(id), j.skala_responden, j.link, j.pilihan_teks, j.nama_dokumen, j.sistem_nilai, j.sumber_data, j.penjelasan, j.link_arsip]);
-      });
+  const dj = [];
+  Object.entries(jawabanAll).forEach(([opd, dataOPD]) => {
+    const rawOPD = Firebase.unescapeKey(opd);
+    Object.entries(dataOPD || {}).forEach(([id, j]) => {
+      dj.push([j.timestamp, rawOPD, Firebase.unescapeKey(id), j.skala_responden, j.link, j.pilihan_teks, j.nama_dokumen, j.sistem_nilai, j.sumber_data, j.penjelasan, j.link_arsip]);
     });
+  });
 
-    const dv = [];
-    Object.entries(verifikasiAll).forEach(([opd, dataOPD]) => {
-      const rawOPD = Firebase.unescapeKey(opd);
-      Object.entries(dataOPD || {}).forEach(([id, v]) => {
-        dv.push([v.timestamp, rawOPD, Firebase.unescapeKey(id), v.skala_responden, v.skala_evaluator, v.catatan_evaluator]);
-      });
+  const dv = [];
+  Object.entries(verifikasiAll).forEach(([opd, dataOPD]) => {
+    const rawOPD = Firebase.unescapeKey(opd);
+    Object.entries(dataOPD || {}).forEach(([id, v]) => {
+      dv.push([v.timestamp, rawOPD, Firebase.unescapeKey(id), v.skala_responden, v.skala_evaluator, v.catatan_evaluator]);
     });
+  });
 
-    return { ds: ds, dj: dj, dv: dv };
-  }
-
-  const djSheet = ss.getSheetByName("Jawaban");
-  const vSheet = ss.getSheetByName("Verifikasi");
-  
-  return {
-    ds: ds,
-    dj: djSheet && djSheet.getLastRow() > 1 ? djSheet.getDataRange().getValues().slice(1) : [],
-    dv: vSheet && vSheet.getLastRow() > 1 ? vSheet.getDataRange().getValues().slice(1) : []
-  };
+  return { ds: ds, dj: dj, dv: dv };
 }
 
 /**
- * Memuat pengaturan faktor umum global (dari sheet Pengaturan_Umum)
- * dan daftar urusan yang dikecualikan dari bonus (dari PropertiesService).
+ * Memuat pengaturan faktor umum global (dari PropertiesService)
+ * dan daftar urusan yang dikecualikan dari bonus.
  */
-/**
- * Memuat pengaturan faktor umum global (dari PropertiesService / sheet Pengaturan_Umum)
- * dan daftar urusan yang dikecualikan dari bonus (dari PropertiesService).
- */
-function _loadFaktorUmumGlobal(ss) {
+function _loadFaktorUmumGlobal() {
   let faktorUmumGlobal = 0;
   let excludedBonus = [];
   try {
@@ -75,16 +52,6 @@ function _loadFaktorUmumGlobal(ss) {
     const fu2 = parseFloat(props.getProperty('fu_2_val')) || 0;
     const fu3 = parseFloat(props.getProperty('fu_3_val')) || 0;
     faktorUmumGlobal = fu1 + fu2 + fu3;
-
-    if (faktorUmumGlobal === 0 && ss) {
-      const sheetPengaturan = ss.getSheetByName("Pengaturan_Umum");
-      if (sheetPengaturan && sheetPengaturan.getLastRow() > 1) {
-        const dataPengaturan = sheetPengaturan.getDataRange().getValues();
-        for (let i = 1; i < dataPengaturan.length; i++) {
-          faktorUmumGlobal += parseFloat(dataPengaturan[i][2]) || 0;
-        }
-      }
-    }
   } catch(e) {}
   return { faktorUmumGlobal: faktorUmumGlobal, excludedBonus: excludedBonus };
 }
@@ -278,183 +245,99 @@ function simpanSemuaJawaban(payload) {
     }
   }
 
-  if (SETTINGS.USE_FIREBASE) {
-    const ts = new Date().toISOString();
-    const opdEscaped = Firebase.escapeKey(payload.opd);
-    const existingJawaban = Firebase.get(`jawaban/${opdEscaped}`) || {};
-    const updates = {};
-    (payload.jawaban || []).forEach(item => {
-      if (!item || item.id === undefined || item.id === null) return;
-      const escapedId = Firebase.escapeKey(item.id.toString());
-      const prevItem = existingJawaban[escapedId] || {};
-      const itemLink = String(item.link || "").trim();
-      let linkArsip = prevItem.link_arsip || "";
-      if (!linkArsip && itemLink) {
-        try {
-          linkArsip = snapshotDriveFolder(payload.opd, itemLink) || "";
-        } catch (e) {}
-      }
-
-      updates[escapedId] = {
-        timestamp: ts,
-        skala_responden: (item.skala !== "" && item.skala !== undefined && item.skala !== null) ? Number(item.skala) : "",
-        link: itemLink,
-        link_arsip: linkArsip,
-        pilihan_teks: item.pilihan_teks || "",
-        nama_dokumen: item.nama_dokumen || "",
-        sistem_nilai: item.sistem_nilai !== undefined ? item.sistem_nilai : "-",
-        sumber_data: item.sumber_data !== undefined ? item.sumber_data : "-",
-        penjelasan: item.penjelasan !== undefined ? item.penjelasan : "-"
-      };
-    });
-    if (Object.keys(updates).length > 0) {
-      Firebase.patch(`jawaban/${opdEscaped}`, updates);
+  const ts = new Date().toISOString();
+  const opdEscaped = Firebase.escapeKey(payload.opd);
+  const existingJawaban = Firebase.get(`jawaban/${opdEscaped}`) || {};
+  const updates = {};
+  (payload.jawaban || []).forEach(item => {
+    if (!item || item.id === undefined || item.id === null) return;
+    const escapedId = Firebase.escapeKey(item.id.toString());
+    const prevItem = existingJawaban[escapedId] || {};
+    const itemLink = String(item.link || "").trim();
+    let linkArsip = prevItem.link_arsip || "";
+    if (!linkArsip && itemLink) {
+      try {
+        linkArsip = snapshotDriveFolder(payload.opd, itemLink) || "";
+      } catch (e) {}
     }
-    Firebase.remove(`jawaban_draft/${opdEscaped}`);
-    return "Berhasil";
-  }
 
-  const sheet = getSS().getSheetByName("Jawaban");
-  const rows = payload.jawaban.map(item => {
-    let linkArsip = snapshotDriveFolder(payload.opd, item.link) || "";
-    return [
-      new Date(), 
-      payload.opd, 
-      item.id, 
-      item.skala, 
-      item.link, 
-      item.pilihan_teks,
-      item.nama_dokumen,
-      item.sistem_nilai || "-",
-      item.sumber_data || "-",
-      item.penjelasan || "-",
-      linkArsip
-    ];
+    updates[escapedId] = {
+      timestamp: ts,
+      skala_responden: (item.skala !== "" && item.skala !== undefined && item.skala !== null) ? Number(item.skala) : "",
+      link: itemLink,
+      link_arsip: linkArsip,
+      pilihan_teks: item.pilihan_teks || "",
+      nama_dokumen: item.nama_dokumen || "",
+      sistem_nilai: item.sistem_nilai !== undefined ? item.sistem_nilai : "-",
+      sumber_data: item.sumber_data !== undefined ? item.sumber_data : "-",
+      penjelasan: item.penjelasan !== undefined ? item.penjelasan : "-"
+    };
   });
-  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
+  if (Object.keys(updates).length > 0) {
+    Firebase.patch(`jawaban/${opdEscaped}`, updates);
+  }
+  Firebase.remove(`jawaban_draft/${opdEscaped}`);
   return "Berhasil";
 }
 
 function getOPDSudahKirim() {
-  if (SETTINGS.USE_FIREBASE) {
-    const jawabanAll = Firebase.get("jawaban") || {};
-    return Object.keys(jawabanAll).map(opd => Firebase.unescapeKey(opd)).sort();
-  }
-
-  const sheet = getSS().getSheetByName("Jawaban");
-  if (sheet.getLastRow() < 2) return [];
-  const data = sheet.getDataRange().getValues().slice(1);
-  return [...new Set(data.map(r => r[1]))];
+  const jawabanAll = Firebase.get("jawaban") || {};
+  return Object.keys(jawabanAll).map(opd => Firebase.unescapeKey(opd)).sort();
 }
 
 function getSubKategoriStats() {
-  const data = _loadSharedData(getSS());
+  const data = _loadSharedData();
   return _computeSubKatStats(data.ds, data.dj, data.dv);
 }
 
 function getJawabanBySubKategori(subKategori) {
-  const data = _loadSharedData(getSS());
+  const data = _loadSharedData();
   return _computeJawabanBySubKategori(subKategori, data.ds, data.dj, data.dv);
 }
 
 function simpanVerifikasi(payload) {
-  if (SETTINGS.USE_FIREBASE) {
-    const ts = new Date().toISOString();
-    if (!payload.items || payload.items.length === 0) return "Berhasil";
-    
-    // Kelompokkan item per-OPD agar verifikasi tersimpan ke node OPD masing-masing
-    const opdUpdatesMap = {};
-    payload.items.forEach(item => {
-      if (!item.opd) return;
-      const opdEscaped = Firebase.escapeKey(item.opd);
-      if (!opdUpdatesMap[opdEscaped]) {
-        opdUpdatesMap[opdEscaped] = {};
-      }
-      const qIdEscaped = Firebase.escapeKey(item.id_soal.toString());
-      opdUpdatesMap[opdEscaped][qIdEscaped] = {
-        timestamp: ts,
-        skala_responden: item.skala_responden !== "" && item.skala_responden !== null ? Number(item.skala_responden) : "",
-        skala_evaluator: item.skala_evaluator !== "" && item.skala_evaluator !== null ? Number(item.skala_evaluator) : "",
-        catatan_evaluator: item.catatan || ""
-      };
-    });
-
-    Object.entries(opdUpdatesMap).forEach(([opdEscaped, updates]) => {
-      Firebase.patch(`verifikasi/${opdEscaped}`, updates);
-    });
-
-    return "Berhasil";
-  }
-
-  const sheet = getSS().getSheetByName("Verifikasi");
-  const data = sheet.getDataRange().getValues();
+  const ts = new Date().toISOString();
+  if (!payload.items || payload.items.length === 0) return "Berhasil";
   
-  let existingMap = new Map();
-  for (let i = 1; i < data.length; i++) {
-    existingMap.set(data[i][1] + "-" + data[i][2].toString(), i);
-  }
-  
-  let toAppend = [];
-  const now = new Date();
-  let dataChanged = false;
-  
+  // Kelompokkan item per-OPD agar verifikasi tersimpan ke node OPD masing-masing
+  const opdUpdatesMap = {};
   payload.items.forEach(item => {
-    const key = item.opd + "-" + item.id_soal.toString();
-    const val = [now, item.opd, item.id_soal, item.skala_responden, item.skala_evaluator, item.catatan];
-    
-    if (existingMap.has(key)) {
-      data[existingMap.get(key)] = val;
-      dataChanged = true;
-    } else {
-      toAppend.push(val);
+    if (!item.opd) return;
+    const opdEscaped = Firebase.escapeKey(item.opd);
+    if (!opdUpdatesMap[opdEscaped]) {
+      opdUpdatesMap[opdEscaped] = {};
     }
+    const qIdEscaped = Firebase.escapeKey(item.id_soal.toString());
+    opdUpdatesMap[opdEscaped][qIdEscaped] = {
+      timestamp: ts,
+      skala_responden: item.skala_responden !== "" && item.skala_responden !== null ? Number(item.skala_responden) : "",
+      skala_evaluator: item.skala_evaluator !== "" && item.skala_evaluator !== null ? Number(item.skala_evaluator) : "",
+      catatan_evaluator: item.catatan || ""
+    };
   });
-  
-  // Bulk update baris yang sudah ada (menimpa sheet)
-  if (dataChanged) {
-    sheet.getRange(1, 1, data.length, data[0].length).setValues(data);
-  }
-  
-  // Bulk insert baris baru
-  if (toAppend.length > 0) {
-    sheet.getRange(sheet.getLastRow() + 1, 1, toAppend.length, toAppend[0].length).setValues(toAppend);
-  }
-  
+
+  Object.entries(opdUpdatesMap).forEach(([opdEscaped, updates]) => {
+    Firebase.patch(`verifikasi/${opdEscaped}`, updates);
+  });
+
   return "Berhasil";
 }
 
-/**
- * OPTIMASI: getStats() sekarang membaca semua sheet SEKALI,
- * lalu menghitung subKatStats dan laporan dari data yang sama.
- * Sebelumnya: ~8 sheet reads → Sekarang: ~5 sheet reads.
- */
 function getStats() {
-  const ss = getSS();
-  
   let resps = 0;
-  if (SETTINGS.USE_FIREBASE) {
-    try {
-      const usersData = Firebase.get("users") || {};
-      resps = Object.values(usersData).filter(u => u && (u.role === "Responden" || u.role === "responden")).length;
-    } catch (e) {
-      Logger.log("Gagal membaca users dari Firebase: " + e.message);
-    }
-  }
-
-  if (resps === 0 && ss) {
-    const userSheet = ss.getSheetByName("Users");
-    if (userSheet && userSheet.getLastRow() > 1) {
-      resps = userSheet.getDataRange().getValues().filter(r => r[2] === "Responden").length;
-    }
+  try {
+    const usersData = Firebase.get("users") || {};
+    resps = Object.values(usersData).filter(u => u && (u.role === "Responden" || u.role === "responden")).length;
+  } catch (e) {
+    Logger.log("Gagal membaca users dari Firebase: " + e.message);
   }
   
-  const data = _loadSharedData(ss);
-  const settings = _loadFaktorUmumGlobal(ss);
+  const data = _loadSharedData();
+  const settings = _loadFaktorUmumGlobal();
 
   const listOpd = [...new Set(data.dj.map(r => r[1]))];
   const sudah = listOpd.length;
   
-  // Hitung dari shared data (bukan panggil fungsi yang baca sheet lagi)
   const subKatStats = _computeSubKatStats(data.ds, data.dj, data.dv);
   const urusanSudah = subKatStats.filter(s => s.total_jawaban > 0 && s.total_divalidasi >= s.total_jawaban).length;
   
@@ -481,9 +364,8 @@ function getStats() {
 }
 
 function getLaporanNilai() {
-  const ss = getSS();
-  const data = _loadSharedData(ss);
-  const settings = _loadFaktorUmumGlobal(ss);
+  const data = _loadSharedData();
+  const settings = _loadFaktorUmumGlobal();
   return _computeLaporanNilai(data.ds, data.dv, settings.faktorUmumGlobal, settings.excludedBonus);
 }
 
@@ -496,15 +378,7 @@ function determineRating(score) {
 }
 
 function getOpdSudahIsi() {
-  if (SETTINGS.USE_FIREBASE) {
-    return getOPDSudahKirim();
-  }
-  const ss = getSS();
-  const jSheet = ss.getSheetByName("Jawaban");
-  if (jSheet.getLastRow() < 2) return [];
-  const data = jSheet.getRange(2, 2, jSheet.getLastRow() - 1, 1).getValues();
-  const opds = [...new Set(data.map(r => r[0].toString().trim()))].filter(o => o !== "");
-  return opds.sort();
+  return getOPDSudahKirim();
 }
 
 function deleteArchiveFolderByOPD(opdName) {
@@ -528,52 +402,16 @@ function resetJawabanOPD(opdName) {
   // Pindahkan folder snapshot Drive milik OPD ini ke Trash Drive Admin
   deleteArchiveFolderByOPD(opdName);
 
-  if (SETTINGS.USE_FIREBASE) {
-    const opd = Firebase.escapeKey(opdName);
-    Firebase.remove(`jawaban/${opd}`);
-    Firebase.remove(`verifikasi/${opd}`);
-    Firebase.remove(`jawaban_draft/${opd}`);
-    return "Seluruh data jawaban, draf isian, validasi, dan folder snapshot Drive untuk " + opdName + " berhasil di-reset!";
-  }
-
-  const ss = getSS();
-  const jSheet = ss.getSheetByName("Jawaban");
-  
-  if (jSheet.getLastRow() > 1) {
-    const jData = jSheet.getDataRange().getValues();
-    const newData = jData.filter((row, i) => i === 0 || row[1].toString() !== opdName);
-    
-    jSheet.clearContents();
-    if (newData.length > 0) {
-      jSheet.getRange(1, 1, newData.length, newData[0].length).setValues(newData);
-    }
-  }
-  
-  resetValidasiOPD(opdName);
-  
-  return "Seluruh data jawaban, validasi, dan folder snapshot Drive untuk " + opdName + " berhasil di-reset!";
+  const opd = Firebase.escapeKey(opdName);
+  Firebase.remove(`jawaban/${opd}`);
+  Firebase.remove(`verifikasi/${opd}`);
+  Firebase.remove(`jawaban_draft/${opd}`);
+  return "Seluruh data jawaban, draf isian, validasi, dan folder snapshot Drive untuk " + opdName + " berhasil di-reset!";
 }
 
 function resetValidasiOPD(opdName) {
-  if (SETTINGS.USE_FIREBASE) {
-    const opd = Firebase.escapeKey(opdName);
-    Firebase.remove(`verifikasi/${opd}`);
-    return "Data validasi evaluator untuk " + opdName + " berhasil di-reset!";
-  }
-
-  const ss = getSS();
-  const vSheet = ss.getSheetByName("Verifikasi");
-  
-  if (vSheet.getLastRow() > 1) {
-    const vData = vSheet.getDataRange().getValues();
-    // Filter out rows matching opdName
-    const newData = vData.filter((row, i) => i === 0 || row[1].toString() !== opdName);
-    
-    vSheet.clearContents();
-    if (newData.length > 0) {
-      vSheet.getRange(1, 1, newData.length, newData[0].length).setValues(newData);
-    }
-  }
+  const opd = Firebase.escapeKey(opdName);
+  Firebase.remove(`verifikasi/${opd}`);
   return "Data validasi evaluator untuk " + opdName + " berhasil di-reset!";
 }
 
@@ -670,39 +508,22 @@ function resnapshotAllByOPD(opdName) {
 
   try {
     let count = 0;
-    if (SETTINGS.USE_FIREBASE) {
-      const opdEscaped = Firebase.escapeKey(opdName);
-      const jawabanOPD = Firebase.get(`jawaban/${opdEscaped}`) || {};
-      const updates = {};
+    const opdEscaped = Firebase.escapeKey(opdName);
+    const jawabanOPD = Firebase.get(`jawaban/${opdEscaped}`) || {};
+    const updates = {};
 
-      Object.entries(jawabanOPD).forEach(([escapedId, j]) => {
-        if (j && j.link) {
-          const newArsip = snapshotDriveFolder(opdName, j.link);
-          if (newArsip) {
-            updates[`${escapedId}/link_arsip`] = newArsip;
-            count++;
-          }
-        }
-      });
-
-      if (Object.keys(updates).length > 0) {
-        Firebase.patch(`jawaban/${opdEscaped}`, updates);
-      }
-    } else {
-      const ss = getSS();
-      const sheet = ss.getSheetByName("Jawaban");
-      if (sheet && sheet.getLastRow() > 1) {
-        const data = sheet.getDataRange().getValues();
-        for (let i = 1; i < data.length; i++) {
-          if (data[i][1] === opdName && data[i][4]) {
-            const newArsip = snapshotDriveFolder(opdName, data[i][4]);
-            if (newArsip) {
-              sheet.getRange(i + 1, 11).setValue(newArsip);
-              count++;
-            }
-          }
+    Object.entries(jawabanOPD).forEach(([escapedId, j]) => {
+      if (j && j.link) {
+        const newArsip = snapshotDriveFolder(opdName, j.link);
+        if (newArsip) {
+          updates[`${escapedId}/link_arsip`] = newArsip;
+          count++;
         }
       }
+    });
+
+    if (Object.keys(updates).length > 0) {
+      Firebase.patch(`jawaban/${opdEscaped}`, updates);
     }
 
     return {
@@ -719,7 +540,7 @@ function resnapshotBySubKategori(subKategori) {
   if (!subKategori) return { success: false, message: "Sub Kategori (Urusan) tidak valid" };
 
   try {
-    const data = _loadSharedData(getSS());
+    const data = _loadSharedData();
     const soalTerkait = data.ds.filter(s => (s[2] ? s[2].toString().trim() : "Umum") === subKategori);
     const idSoalSet = new Set(soalTerkait.map(s => s[0].toString()));
 
@@ -772,88 +593,60 @@ function resnapshotAllExistingOPDs() {
 function simpanDraftJawaban(payload) {
   if (!payload || !payload.opd) return { status: "error", message: "Nama OPD tidak valid" };
   
-  if (SETTINGS.USE_FIREBASE) {
-    const opdEscaped = Firebase.escapeKey(payload.opd);
-    const submitted = Firebase.get(`jawaban/${opdEscaped}`);
-    if (submitted && Object.keys(submitted).length > 0) {
-      return { status: "error", message: "Formulir terkunci: OPD Anda telah mengirimkan jawaban definitif." };
-    }
-
-    const ts = new Date().toISOString();
-    const updates = {};
-    (payload.jawaban || []).forEach(item => {
-      if (item && item.id) {
-        const escapedId = Firebase.escapeKey(item.id.toString());
-        updates[escapedId] = {
-          timestamp: ts,
-          skala_responden: item.skala !== undefined ? item.skala : "",
-          link: item.link || "",
-          pilihan_teks: item.pilihan_teks || "",
-          nama_dokumen: item.nama_dokumen || "",
-          sistem_nilai: item.sistem_nilai || "",
-          sumber_data: item.sumber_data || "",
-          penjelasan: item.penjelasan || ""
-        };
-      }
-    });
-    if (Object.keys(updates).length > 0) {
-      Firebase.patch(`jawaban_draft/${opdEscaped}`, updates);
-    }
-    return { status: "success", message: "Draf berhasil tersimpan di server" };
+  const opdEscaped = Firebase.escapeKey(payload.opd);
+  const submitted = Firebase.get(`jawaban/${opdEscaped}`);
+  if (submitted && Object.keys(submitted).length > 0) {
+    return { status: "error", message: "Formulir terkunci: OPD Anda telah mengirimkan jawaban definitif." };
   }
-  return { status: "success", message: "Draf tersimpan" };
+
+  const ts = new Date().toISOString();
+  const updates = {};
+  (payload.jawaban || []).forEach(item => {
+    if (item && item.id) {
+      const escapedId = Firebase.escapeKey(item.id.toString());
+      updates[escapedId] = {
+        timestamp: ts,
+        skala_responden: item.skala !== undefined ? item.skala : "",
+        link: item.link || "",
+        pilihan_teks: item.pilihan_teks || "",
+        nama_dokumen: item.nama_dokumen || "",
+        sistem_nilai: item.sistem_nilai || "",
+        sumber_data: item.sumber_data || "",
+        penjelasan: item.penjelasan || ""
+      };
+    }
+  });
+  if (Object.keys(updates).length > 0) {
+    Firebase.patch(`jawaban_draft/${opdEscaped}`, updates);
+  }
+  return { status: "success", message: "Draf berhasil tersimpan di server" };
 }
 
 function getDraftJawaban(opdName) {
   if (!opdName) return { draft: {}, isSubmitted: false };
-  if (SETTINGS.USE_FIREBASE) {
-    const opdEscaped = Firebase.escapeKey(opdName);
-    const submittedData = Firebase.get(`jawaban/${opdEscaped}`);
-    const isSubmitted = !!(submittedData && Object.keys(submittedData).length > 0);
+  const opdEscaped = Firebase.escapeKey(opdName);
+  const submittedData = Firebase.get(`jawaban/${opdEscaped}`);
+  const isSubmitted = !!(submittedData && Object.keys(submittedData).length > 0);
 
-    let draftData = Firebase.get(`jawaban_draft/${opdEscaped}`);
-    if (!draftData || Object.keys(draftData).length === 0) {
-      draftData = submittedData || {};
-    }
-    const result = {};
-    Object.entries(draftData).forEach(([idEscaped, j]) => {
-      const qId = Firebase.unescapeKey(idEscaped);
-      result[qId] = {
-        id: qId,
-        skala: j.skala_responden !== undefined ? j.skala_responden : "",
-        link: j.link || "",
-        pilihan_teks: j.pilihan_teks || "",
-        nama_dokumen: j.nama_dokumen || "",
-        sistem_nilai: j.sistem_nilai !== undefined ? j.sistem_nilai : "",
-        sumber_data: j.sumber_data !== undefined ? j.sumber_data : "",
-        penjelasan: j.penjelasan !== undefined ? j.penjelasan : ""
-      };
-    });
-    return { draft: result, isSubmitted: isSubmitted };
+  let draftData = Firebase.get(`jawaban_draft/${opdEscaped}`);
+  if (!draftData || Object.keys(draftData).length === 0) {
+    draftData = submittedData || {};
   }
-
-  const sheet = getSS().getSheetByName("Jawaban");
-  if (sheet && sheet.getLastRow() > 1) {
-    const data = sheet.getDataRange().getValues().slice(1);
-    const opdRows = data.filter(r => r[1].toString() === opdName);
-    const isSubmitted = opdRows.length > 0;
-    const result = {};
-    opdRows.forEach(r => {
-      const qId = r[2].toString();
-      result[qId] = {
-        id: qId,
-        skala: r[3],
-        link: r[4],
-        pilihan_teks: r[5],
-        nama_dokumen: r[6],
-        sistem_nilai: r[7],
-        sumber_data: r[8],
-        penjelasan: r[9]
-      };
-    });
-    return { draft: result, isSubmitted: isSubmitted };
-  }
-  return { draft: {}, isSubmitted: false };
+  const result = {};
+  Object.entries(draftData).forEach(([idEscaped, j]) => {
+    const qId = Firebase.unescapeKey(idEscaped);
+    result[qId] = {
+      id: qId,
+      skala: j.skala_responden !== undefined ? j.skala_responden : "",
+      link: j.link || "",
+      pilihan_teks: j.pilihan_teks || "",
+      nama_dokumen: j.nama_dokumen || "",
+      sistem_nilai: j.sistem_nilai !== undefined ? j.sistem_nilai : "",
+      sumber_data: j.sumber_data !== undefined ? j.sumber_data : "",
+      penjelasan: j.penjelasan !== undefined ? j.penjelasan : ""
+    };
+  });
+  return { draft: result, isSubmitted: isSubmitted };
 }
 
 

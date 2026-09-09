@@ -11,9 +11,8 @@ function buatLaporanUrusan(namaUrusan, format) {
   const fuData = getFaktorUmum();
   
   // OPTIMASI: Baca sheet data SEKALI, lalu hitung laporan dan jawaban dari cache
-  const ss = getSS();
-  const sharedData = _loadSharedData(ss);
-  const settings = _loadFaktorUmumGlobal(ss);
+  const sharedData = _loadSharedData();
+  const settings = _loadFaktorUmumGlobal();
   
   const laporanFull = _computeLaporanNilai(sharedData.ds, sharedData.dv, settings.faktorUmumGlobal, settings.excludedBonus);
   const laporanUrusan = laporanFull.filter(l => l.urusan === namaUrusan);
