@@ -161,10 +161,17 @@ function _computeJawabanBySubKategori(subKategori, ds, dj, dv) {
       };
     });
 
+    var indikator = soal[4] ? soal[4].toString() : "";
+    var data_dukung = soal[5] ? soal[5].toString() : "";
+    var penjelasan_soal = soal[6] ? soal[6].toString() : "";
+
     return {
       id_soal: idSoal,
       pertanyaan: pertanyaan,
       bobot_str: bobot_str,
+      indikator: indikator,
+      data_dukung: data_dukung,
+      penjelasan_soal: penjelasan_soal,
       jawaban_opd: jawabanMapped
     };
   });
