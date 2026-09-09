@@ -269,6 +269,7 @@ function simpanSemuaJawaban(payload) {
       };
     });
     Firebase.patch(`jawaban/${opdEscaped}`, updates);
+    Firebase.remove(`jawaban_draft/${opdEscaped}`);
     return "Berhasil";
   }
 
@@ -702,5 +703,60 @@ function resnapshotAllExistingOPDs() {
     return { success: false, message: "Gagal memproses snapshot massal: " + e.message };
   }
 }
+
+function simpanDraftJawaban(payload) {
+  if (!payload || !payload.opd) return { status: "error", message: "Nama OPD tidak valid" };
+  
+  if (SETTINGS.USE_FIREBASE) {
+    const ts = new Date().toISOString();
+    const opdEscaped = Firebase.escapeKey(payload.opd);
+    const updates = {};
+    (payload.jawaban || []).forEach(item => {
+      if (item && item.id) {
+        const escapedId = Firebase.escapeKey(item.id.toString());
+        updates[escapedId] = {
+          timestamp: ts,
+          skala_responden: item.skala !== undefined ? item.skala : "",
+          link: item.link || "",
+          pilihan_teks: item.pilihan_teks || "",
+          nama_dokumen: item.nama_dokumen || "",
+          sistem_nilai: item.sistem_nilai || "",
+          sumber_data: item.sumber_data || "",
+          penjelasan: item.penjelasan || ""
+        };
+      }
+    });
+    if (Object.keys(updates).length > 0) {
+      Firebase.patch(`jawaban_draft/${opdEscaped}`, updates);
+    }
+    return { status: "success", message: "Draf berhasil tersimpan di server" };
+  }
+  return { status: "success", message: "Draf tersimpan" };
+}
+
+function getDraftJawaban(opdName) {
+  if (!opdName) return {};
+  if (SETTINGS.USE_FIREBASE) {
+    const opdEscaped = Firebase.escapeKey(opdName);
+    const draftData = Firebase.get(`jawaban_draft/${opdEscaped}`) || {};
+    const result = {};
+    Object.entries(draftData).forEach(([idEscaped, j]) => {
+      const qId = Firebase.unescapeKey(idEscaped);
+      result[qId] = {
+        id: qId,
+        skala: j.skala_responden !== undefined ? j.skala_responden : "",
+        link: j.link || "",
+        pilihan_teks: j.pilihan_teks || "",
+        nama_dokumen: j.nama_dokumen || "",
+        sistem_nilai: j.sistem_nilai || "",
+        sumber_data: j.sumber_data || "",
+        penjelasan: j.penjelasan || ""
+      };
+    });
+    return result;
+  }
+  return {};
+}
+
 
 

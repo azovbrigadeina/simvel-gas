@@ -270,24 +270,50 @@
       
       startDeadlineTimer(deadlineStr);
       
-      // Fetch Pertanyaan
-      updateLoadingStatus('Menyusun formulir pengisian...');
-      google.script.run.withSuccessHandler(data => {
-        data.forEach(r => {
-          let ut = r[1] ? r[1].trim() : "Lainnya";
-          let sub = r[2] ? r[2].trim() : "Umum";
-          let key = ut + "|||" + sub;
+      // Fetch Draft first
+      updateLoadingStatus('Memuat draf isian sebelumnya...');
+      let localDraft = {};
+      try {
+        const dStr = localStorage.getItem('simvel_draft_' + sess.nama_opd);
+        if (dStr) localDraft = JSON.parse(dStr);
+      } catch(e) {}
 
-          if(!grp[key]) { 
-            grp[key] = []; 
-            cats.push(key); 
-            parentCat[key] = { utama: ut, subkat: sub };
+      google.script.run.withSuccessHandler(serverDraft => {
+        ans = Object.assign({}, serverDraft || {}, localDraft || {});
+
+        // Fetch Pertanyaan
+        updateLoadingStatus('Menyusun formulir pengisian...');
+        google.script.run.withSuccessHandler(data => {
+          data.forEach(r => {
+            let ut = r[1] ? r[1].trim() : "Lainnya";
+            let sub = r[2] ? r[2].trim() : "Umum";
+            let key = ut + "|||" + sub;
+
+            if(!grp[key]) { 
+              grp[key] = []; 
+              cats.push(key); 
+              parentCat[key] = { utama: ut, subkat: sub };
+            }
+            grp[key].push(r);
+          });
+          showS(0);
+          hideLoadingScreen();
+
+          if (Object.keys(ans).length > 0) {
+            const Toast = Swal.mixin({
+              toast: true,
+              position: 'top-end',
+              showConfirmButton: false,
+              timer: 3500,
+              timerProgressBar: true
+            });
+            Toast.fire({
+              icon: 'info',
+              title: 'Draf isian sebelumnya berhasil dimuat.'
+            });
           }
-          grp[key].push(r);
-        });
-        showS(0);
-        hideLoadingScreen();
-      }).getPertanyaan(sess.nama_opd);
+        }).getPertanyaan(sess.nama_opd);
+      }).getDraftJawaban(sess.nama_opd);
     }).getDeadlineSettings();
   }
 
@@ -421,13 +447,55 @@
     let hideKirim = (isDeadlinePassed && idx === cats.length - 1) ? 'd-none' : '';
 
     h += `
-    <div class="d-flex justify-content-between pb-5 mt-4">
+    <div class="d-flex justify-content-between align-items-center pb-5 mt-4 flex-wrap gap-2">
       <button class="btn btn-secondary px-4" onclick="showS(${idx-1})" ${idx===0?'disabled':''}>KEMBALI</button>
-      <button id="btn-kirim-ans" class="btn btn-primary px-5 fw-bold ${hideKirim}" onclick="${idx<cats.length-1?`showS(${idx+1})`:`finS()`}">
-        ${btnLanjutKirim}
-      </button>
+      <div>
+        <button class="btn btn-outline-warning text-dark px-4 fw-bold me-2" onclick="simpanDrafManual()" title="Simpan isian sementara tanpa mengirim akhir" ${isDeadlinePassed ? 'disabled' : ''}>
+          <i class="bi bi-bookmark-check-fill me-1"></i> SIMPAN DRAF
+        </button>
+        <button id="btn-kirim-ans" class="btn btn-primary px-5 fw-bold ${hideKirim}" onclick="${idx<cats.length-1?`showS(${idx+1})`:`finS()`}">
+          ${btnLanjutKirim}
+        </button>
+      </div>
     </div>`;
     cont.innerHTML = h; window.scrollTo(0,0);
+  }
+
+  function autoSaveDraftLocal() {
+    try {
+      if (sess && sess.nama_opd) {
+        localStorage.setItem('simvel_draft_' + sess.nama_opd, JSON.stringify(ans));
+      }
+    } catch(e) {}
+  }
+
+  function simpanDrafManual() {
+    autoSaveDraftLocal();
+    if (!sess || !sess.nama_opd) return;
+
+    const payloadJawaban = Object.values(ans);
+    Swal.fire({
+      title: 'Menyimpan Draf...',
+      text: 'Sistem sedang menyimpan draf isian Anda...',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+
+    google.script.run.withSuccessHandler(res => {
+      Swal.close();
+      const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3500,
+        timerProgressBar: true
+      });
+      Toast.fire({
+        icon: 'success',
+        title: 'Draf isian berhasil disimpan!',
+        text: 'Anda dapat melanjutkan pengisian kapan saja.'
+      });
+    }).simpanDraftJawaban({ opd: sess.nama_opd, jawaban: payloadJawaban });
   }
 
   function initAnsObject(id) {
@@ -438,26 +506,31 @@
     initAnsObject(id);
     ans[id].skala = el.value; 
     ans[id].pilihan_teks = el.getAttribute('data-teks');
+    autoSaveDraftLocal();
   }
 
   function savSistemNilai(id, el) {
     initAnsObject(id);
     ans[id].sistem_nilai = el.value.trim();
+    autoSaveDraftLocal();
   }
 
   function savDocName(id, el) {
     initAnsObject(id);
     ans[id].nama_dokumen = el.value.trim();
+    autoSaveDraftLocal();
   }
 
   function savSumberData(id, el) {
     initAnsObject(id);
     ans[id].sumber_data = el.value.trim();
+    autoSaveDraftLocal();
   }
 
   function savPenjelasan(id, el) {
     initAnsObject(id);
     ans[id].penjelasan = el.value.trim();
+    autoSaveDraftLocal();
   }
 
   function savLinkVal(id, el) {
@@ -475,6 +548,7 @@
       el.classList.remove('is-valid');
       el.classList.add('is-invalid');
     }
+    autoSaveDraftLocal();
   }
   
   function finS() { 
@@ -526,6 +600,9 @@
       if(r.isConfirmed) {
         Swal.showLoading();
         google.script.run.withSuccessHandler(() => {
+          try {
+            localStorage.removeItem('simvel_draft_' + sess.nama_opd);
+          } catch(e) {}
           Swal.fire('Berhasil', 'Seluruh data Anda telah berhasil terkirim. Terima kasih.', 'success').then(() => location.reload());
         }).simpanSemuaJawaban({opd: sess.nama_opd, jawaban: Object.values(ans)});
       }
