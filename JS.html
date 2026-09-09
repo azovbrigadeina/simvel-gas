@@ -768,83 +768,175 @@
     }).getSubKategoriStats();
   }
 
+  let showLinkAsli = false;
+  let currentActiveSubKat = "";
+
+  function formatTimestampDisplay(tsStr) {
+    if (!tsStr) return "Belum tercatat";
+    try {
+      const d = new Date(tsStr);
+      if (isNaN(d.getTime())) return tsStr;
+      return d.toLocaleDateString('id-ID', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      }) + " WIB";
+    } catch (e) {
+      return tsStr;
+    }
+  }
+
+  function toggleLinkAsli(checked) {
+    showLinkAsli = checked;
+    if (vData && vData.length > 0) {
+      renderValList();
+    }
+  }
+
+  function doRefreshSnapshotSubKat() {
+    if (!currentActiveSubKat) return;
+    Swal.fire({
+      title: 'Memproses Snapshot Ulang...',
+      text: `Sistem sedang menyalin seluruh folder & subfolder bukti dukung OPD pada Urusan "${currentActiveSubKat}"...`,
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+    google.script.run.withSuccessHandler(res => {
+      Swal.close();
+      if (res && res.success) {
+        Swal.fire('Berhasil', res.message, 'success');
+        muatValidasi(currentActiveSubKat);
+      } else {
+        Swal.fire('Error', res ? res.message : 'Gagal memproses snapshot', 'error');
+      }
+    }).resnapshotBySubKategori(currentActiveSubKat);
+  }
+
+  function doRefreshSnapshotSingleOPD(opdName) {
+    if (!opdName) return;
+    Swal.fire({
+      title: 'Memproses Snapshot OPD...',
+      text: `Sistem sedang menyalin seluruh folder & subfolder bukti dukung untuk ${opdName}...`,
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+    google.script.run.withSuccessHandler(res => {
+      Swal.close();
+      if (res && res.success) {
+        Swal.fire('Berhasil', res.message, 'success');
+        if (currentActiveSubKat) muatValidasi(currentActiveSubKat);
+      } else {
+        Swal.fire('Error', res ? res.message : 'Gagal memproses snapshot', 'error');
+      }
+    }).resnapshotAllByOPD(opdName);
+  }
+
+  function renderValList() {
+    if (!vData) return;
+    let html = '';
+    vData.forEach((soal, i) => {
+      let weights = soal.bobot_str ? soal.bobot_str.split('|') : [0,0,0,0,0];
+      const labels = ['A', 'B', 'C', 'D', 'E'];
+
+      html += `<div class="q-card mb-4 border-primary">
+        <h5 class="fw-bold mb-3">${soal.pertanyaan}</h5>`;
+        
+      if(soal.jawaban_opd.length === 0) {
+         html += `<p class="text-muted small">Belum ada OPD yang menjawab soal ini.</p>`;
+      } else {
+        soal.jawaban_opd.forEach((ans, j) => {
+          if (ans.skala_evaluator === undefined || ans.skala_evaluator === null || ans.skala_evaluator === "") {
+            ans.skala_evaluator = ans.skala_responden;
+          }
+          
+          let selectOptions = `<option value="">-- Pilih Skor --</option>`;
+          labels.forEach((lab, k) => {
+            let bbt = weights[k] ? weights[k].trim() : "0";
+            let evalSkorStr = (ans.skala_evaluator !== undefined && ans.skala_evaluator !== null) ? ans.skala_evaluator.toString().trim() : "";
+            let isSelected = (evalSkorStr === bbt) ? 'selected' : '';
+            selectOptions += `<option value="${bbt}" ${isSelected}>${lab} (Bobot: ${bbt})</option>`;
+          });
+
+          // Tombol Link Bukti Dukung (Snapshot vs Link Asli)
+          const snapshotUrl = ans.link_arsip || ans.link;
+          let linkButtonsHtml = '';
+
+          if (showLinkAsli && ans.link_arsip && ans.link) {
+            linkButtonsHtml = `
+              <a href="${ans.link_arsip}" target="_blank" class="btn btn-sm btn-success me-1" title="Link Snapshot Admin (Terkunci)">
+                <i class="bi bi-shield-lock-fill"></i> Snapshot Admin
+              </a>
+              <a href="${ans.link}" target="_blank" class="btn btn-sm btn-outline-warning text-dark me-1" title="Link Evd. Asli Responden (Live)">
+                <i class="bi bi-folder-symlink-fill"></i> Link Evd. Asli
+              </a>`;
+          } else {
+            const btnLabel = ans.link_arsip ? '<i class="bi bi-shield-lock"></i> Snapshot Admin' : '<i class="bi bi-link"></i> Bukti';
+            linkButtonsHtml = `<a href="${snapshotUrl}" target="_blank" class="btn btn-sm btn-outline-primary me-1">${btnLabel}</a>`;
+          }
+
+          const formattedTs = formatTimestampDisplay(ans.timestamp);
+
+          html += `
+          <div class="border rounded p-3 mb-2 bg-light">
+            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-1">
+              <span class="fw-bold text-primary"><i class="bi bi-building"></i> ${ans.opd}</span>
+              <div>
+                <button class="btn btn-sm btn-outline-success me-1" onclick="samakanSkor(${i}, ${j}, '${ans.skala_responden}')" title="Samakan dengan Responden"><i class="bi bi-arrow-down-circle"></i> Samakan Skor</button>
+                <button class="btn btn-sm btn-outline-info me-1" onclick="doRefreshSnapshotSingleOPD('${ans.opd}')" title="Refresh Snapshot OPD ini"><i class="bi bi-arrow-repeat"></i></button>
+                ${linkButtonsHtml}
+              </div>
+            </div>
+            <div class="mb-2">
+              <span class="badge bg-secondary">Pilihan Responden: ${ans.pilihan_responden}</span>
+              <span class="badge bg-info text-dark ms-1">Skor Responden: ${ans.skala_responden}</span>
+              <span class="badge bg-light text-dark border ms-1"><i class="bi bi-clock-history text-primary me-1"></i> Submit OPD: ${formattedTs}</span>
+              <br>
+              <div class="mt-2 small">
+                <b>Sistem (Nilai):</b> <span class="text-dark">${ans.sistem_nilai}</span><br>
+                <b>Data Dokumen:</b> <span class="text-success">${ans.nama_dokumen}</span><br>
+                <b>Sumber & Tahun Data:</b> <span class="text-dark">${ans.sumber_data}</span><br>
+                <b>Penjelasan:</b> <span class="text-dark">${ans.penjelasan}</span>
+              </div>
+            </div>
+            <div class="row g-2">
+              <div class="col-md-3">
+                <label class="small fw-bold">Skor Evaluator</label>
+                <select id="sel-eval-${i}-${j}" class="form-select form-select-sm border-success fw-bold" onchange="vData[${i}].jawaban_opd[${j}].skala_evaluator=this.value">
+                  ${selectOptions}
+                </select>
+              </div>
+              <div class="col-md-9">
+                <label class="small fw-bold">Catatan Evaluator</label>
+                <input type="text" class="form-control form-control-sm" value="${ans.catatan||''}" oninput="vData[${i}].jawaban_opd[${j}].catatan=this.value">
+              </div>
+            </div>
+          </div>`;
+        });
+      }
+      html += `</div>`;
+    });
+    document.getElementById('val-list').innerHTML = html;
+  }
+
   function kembaliKeDaftarValidasi() {
     loadSubKat();
   }
 
   function muatValidasi(subKat) {
     if(!subKat) return;
+    currentActiveSubKat = subKat;
     document.getElementById('val-subkat-view').classList.add('hidden');
     document.getElementById('val-form-view').classList.remove('hidden');
     document.getElementById('val-active-subkat').innerText = `Validasi: ${subKat}`;
+    
+    const switchEl = document.getElementById('switch-link-asli');
+    if (switchEl) switchEl.checked = showLinkAsli;
+
     Swal.showLoading();
     google.script.run.withSuccessHandler(data => {
       Swal.close();
       vData = data; 
       document.getElementById('btn-save-val').classList.remove('hidden');
-      
-      let html = '';
-      data.forEach((soal, i) => {
-        let weights = soal.bobot_str ? soal.bobot_str.split('|') : [0,0,0,0,0];
-        const labels = ['A', 'B', 'C', 'D', 'E'];
-
-        html += `<div class="q-card mb-4 border-primary">
-          <h5 class="fw-bold mb-3">${soal.pertanyaan}</h5>`;
-          
-        if(soal.jawaban_opd.length === 0) {
-           html += `<p class="text-muted small">Belum ada OPD yang menjawab soal ini.</p>`;
-        } else {
-          soal.jawaban_opd.forEach((ans, j) => {
-            if (ans.skala_evaluator === undefined || ans.skala_evaluator === null || ans.skala_evaluator === "") {
-              ans.skala_evaluator = ans.skala_responden;
-            }
-            
-            let selectOptions = `<option value="">-- Pilih Skor --</option>`;
-            labels.forEach((lab, k) => {
-              let bbt = weights[k] ? weights[k].trim() : "0";
-              let evalSkorStr = (ans.skala_evaluator !== undefined && ans.skala_evaluator !== null) ? ans.skala_evaluator.toString().trim() : "";
-              let isSelected = (evalSkorStr === bbt) ? 'selected' : '';
-              selectOptions += `<option value="${bbt}" ${isSelected}>${lab} (Bobot: ${bbt})</option>`;
-            });
-
-            html += `
-            <div class="border rounded p-3 mb-2 bg-light">
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="fw-bold text-primary"><i class="bi bi-building"></i> ${ans.opd}</span>
-                <div>
-                  <button class="btn btn-sm btn-outline-success me-1" onclick="samakanSkor(${i}, ${j}, '${ans.skala_responden}')" title="Samakan dengan Responden"><i class="bi bi-arrow-down-circle"></i> Samakan Skor</button>
-                  <a href="${ans.link}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-link"></i> Bukti</a>
-                </div>
-              </div>
-              <div class="mb-2">
-                <span class="badge bg-secondary">Pilihan Responden: ${ans.pilihan_responden}</span>
-                <span class="badge bg-info text-dark ms-1">Skor Responden: ${ans.skala_responden}</span>
-                <br>
-                <div class="mt-2 small">
-                  <b>Sistem (Nilai):</b> <span class="text-dark">${ans.sistem_nilai}</span><br>
-                  <b>Data Dokumen:</b> <span class="text-success">${ans.nama_dokumen}</span><br>
-                  <b>Sumber & Tahun Data:</b> <span class="text-dark">${ans.sumber_data}</span><br>
-                  <b>Penjelasan:</b> <span class="text-dark">${ans.penjelasan}</span>
-                </div>
-              </div>
-              <div class="row g-2">
-                <div class="col-md-3">
-                  <label class="small fw-bold">Skor Evaluator</label>
-                  <select id="sel-eval-${i}-${j}" class="form-select form-select-sm border-success fw-bold" onchange="vData[${i}].jawaban_opd[${j}].skala_evaluator=this.value">
-                    ${selectOptions}
-                  </select>
-                </div>
-                <div class="col-md-9">
-                  <label class="small fw-bold">Catatan Evaluator</label>
-                  <input type="text" class="form-control form-control-sm" value="${ans.catatan||''}" oninput="vData[${i}].jawaban_opd[${j}].catatan=this.value">
-                </div>
-              </div>
-            </div>`;
-          });
-        }
-        html += `</div>`;
-      });
-      document.getElementById('val-list').innerHTML = html;
+      renderValList();
     }).getJawabanBySubKategori(subKat);
   }
 

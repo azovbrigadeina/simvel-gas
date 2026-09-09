@@ -21,7 +21,7 @@ function _loadSharedData(ss) {
     Object.entries(jawabanAll).forEach(([opd, dataOPD]) => {
       const rawOPD = Firebase.unescapeKey(opd);
       Object.entries(dataOPD || {}).forEach(([id, j]) => {
-        dj.push([j.timestamp, rawOPD, Firebase.unescapeKey(id), j.skala_responden, j.link, j.pilihan_teks, j.nama_dokumen, j.sistem_nilai, j.sumber_data, j.penjelasan]);
+        dj.push([j.timestamp, rawOPD, Firebase.unescapeKey(id), j.skala_responden, j.link, j.pilihan_teks, j.nama_dokumen, j.sistem_nilai, j.sumber_data, j.penjelasan, j.link_arsip]);
       });
     });
 
@@ -147,9 +147,11 @@ function _computeJawabanBySubKategori(subKategori, ds, dj, dv) {
       var verif = verifMap[opd + "||" + idSoal];
       return {
         opd: opd,
+        timestamp: j[0] || "",
         pilihan_responden: j[5] || "-",
         skala_responden: j[3],
         link: j[4],
+        link_arsip: j[10] || "",
         nama_dokumen: j[6] || "-",
         sistem_nilai: j[7] || "-",
         sumber_data: j[8] || "-",
@@ -242,13 +244,23 @@ function simpanSemuaJawaban(payload) {
 
   if (SETTINGS.USE_FIREBASE) {
     const ts = new Date().toISOString();
-    const opd = Firebase.escapeKey(payload.opd);
+    const opdEscaped = Firebase.escapeKey(payload.opd);
+    const existingJawaban = Firebase.get(`jawaban/${opdEscaped}`) || {};
     const updates = {};
     payload.jawaban.forEach(item => {
-      updates[Firebase.escapeKey(item.id.toString())] = {
+      const escapedId = Firebase.escapeKey(item.id.toString());
+      const prevItem = existingJawaban[escapedId] || {};
+      let linkArsip = prevItem.link_arsip || "";
+      if (item.link && (item.link.trim() !== (prevItem.link || "").trim() || !linkArsip)) {
+        const newArsip = snapshotDriveFolder(payload.opd, item.link);
+        if (newArsip) linkArsip = newArsip;
+      }
+
+      updates[escapedId] = {
         timestamp: ts,
         skala_responden: item.skala !== "" ? Number(item.skala) : "",
         link: item.link || "",
+        link_arsip: linkArsip,
         pilihan_teks: item.pilihan_teks || "",
         nama_dokumen: item.nama_dokumen || "",
         sistem_nilai: item.sistem_nilai || "-",
@@ -256,23 +268,27 @@ function simpanSemuaJawaban(payload) {
         penjelasan: item.penjelasan || "-"
       };
     });
-    Firebase.patch(`jawaban/${opd}`, updates);
+    Firebase.patch(`jawaban/${opdEscaped}`, updates);
     return "Berhasil";
   }
 
   const sheet = getSS().getSheetByName("Jawaban");
-  const rows = payload.jawaban.map(item => [
-    new Date(), 
-    payload.opd, 
-    item.id, 
-    item.skala, 
-    item.link, 
-    item.pilihan_teks,
-    item.nama_dokumen,
-    item.sistem_nilai || "-",
-    item.sumber_data || "-",
-    item.penjelasan || "-"
-  ]);
+  const rows = payload.jawaban.map(item => {
+    let linkArsip = snapshotDriveFolder(payload.opd, item.link) || "";
+    return [
+      new Date(), 
+      payload.opd, 
+      item.id, 
+      item.skala, 
+      item.link, 
+      item.pilihan_teks,
+      item.nama_dokumen,
+      item.sistem_nilai || "-",
+      item.sumber_data || "-",
+      item.penjelasan || "-",
+      linkArsip
+    ];
+  });
   sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
   return "Berhasil";
 }
@@ -476,3 +492,173 @@ function resetValidasiOPD(opdName) {
   }
   return "Data validasi evaluator untuk " + opdName + " berhasil di-reset!";
 }
+
+// ============================================================
+// GOOGLE DRIVE SNAPSHOT ENGINE & REFRESH ENDPOINTS
+// ============================================================
+
+function parseDriveUrl(url) {
+  if (!url) return null;
+  const folderMatch = url.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+  if (folderMatch) {
+    return { type: 'FOLDER', id: folderMatch[1] };
+  }
+  const fileMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (fileMatch) {
+    return { type: 'FILE', id: fileMatch[1] };
+  }
+  return null;
+}
+
+function getOrCreateArchiveParentFolder() {
+  const folderName = "[SIMVEL] Arsip Bukti Dukung";
+  const existingFolders = DriveApp.getFoldersByName(folderName);
+  if (existingFolders.hasNext()) {
+    return existingFolders.next();
+  }
+  return DriveApp.createFolder(folderName);
+}
+
+function copyFolderRecursive(sourceFolder, targetFolder) {
+  const files = sourceFolder.getFiles();
+  while (files.hasNext()) {
+    const file = files.next();
+    file.makeCopy(file.getName(), targetFolder);
+  }
+
+  const subfolders = sourceFolder.getFolders();
+  while (subfolders.hasNext()) {
+    const subfolder = subfolders.next();
+    const newSubFolder = targetFolder.createFolder(subfolder.getName());
+    copyFolderRecursive(subfolder, newSubFolder);
+  }
+}
+
+function snapshotDriveFolder(opdName, originalDriveUrl) {
+  if (!originalDriveUrl) return null;
+  const parsed = parseDriveUrl(originalDriveUrl);
+  if (!parsed) return null;
+
+  try {
+    const parentArchive = getOrCreateArchiveParentFolder();
+    const cleanOpd = opdName.toString().trim();
+
+    if (parsed.type === 'FOLDER') {
+      try {
+        const sourceFolder = DriveApp.getFolderById(parsed.id);
+        const originalFolderName = sourceFolder.getName();
+        const targetFolderName = `[${cleanOpd}] - ${originalFolderName}`;
+        const targetFolder = parentArchive.createFolder(targetFolderName);
+        
+        copyFolderRecursive(sourceFolder, targetFolder);
+        return targetFolder.getUrl();
+      } catch (e) {
+        parsed.type = 'FILE';
+      }
+    }
+
+    if (parsed.type === 'FILE') {
+      const sourceFile = DriveApp.getFileById(parsed.id);
+      const originalFileName = sourceFile.getName();
+      
+      const targetFolderName = `[${cleanOpd}] - File Bukti Dukung`;
+      let targetFolder;
+      const existingFolders = parentArchive.getFoldersByName(targetFolderName);
+      if (existingFolders.hasNext()) {
+        targetFolder = existingFolders.next();
+      } else {
+        targetFolder = parentArchive.createFolder(targetFolderName);
+      }
+
+      const copiedFile = sourceFile.makeCopy(originalFileName, targetFolder);
+      return copiedFile.getUrl();
+    }
+
+    return null;
+  } catch (e) {
+    Logger.log("Gagal snapshot Drive item: " + e.toString());
+    return null;
+  }
+}
+
+function resnapshotAllByOPD(opdName) {
+  if (!opdName) return { success: false, message: "OPD tidak valid" };
+
+  try {
+    let count = 0;
+    if (SETTINGS.USE_FIREBASE) {
+      const opdEscaped = Firebase.escapeKey(opdName);
+      const jawabanOPD = Firebase.get(`jawaban/${opdEscaped}`) || {};
+      const updates = {};
+
+      Object.entries(jawabanOPD).forEach(([escapedId, j]) => {
+        if (j && j.link) {
+          const newArsip = snapshotDriveFolder(opdName, j.link);
+          if (newArsip) {
+            updates[`${escapedId}/link_arsip`] = newArsip;
+            count++;
+          }
+        }
+      });
+
+      if (Object.keys(updates).length > 0) {
+        Firebase.patch(`jawaban/${opdEscaped}`, updates);
+      }
+    } else {
+      const ss = getSS();
+      const sheet = ss.getSheetByName("Jawaban");
+      if (sheet && sheet.getLastRow() > 1) {
+        const data = sheet.getDataRange().getValues();
+        for (let i = 1; i < data.length; i++) {
+          if (data[i][1] === opdName && data[i][4]) {
+            const newArsip = snapshotDriveFolder(opdName, data[i][4]);
+            if (newArsip) {
+              sheet.getRange(i + 1, 11).setValue(newArsip);
+              count++;
+            }
+          }
+        }
+      }
+    }
+
+    return {
+      success: true,
+      count: count,
+      message: `Berhasil memperbarui ${count} snapshot bukti dukung untuk ${opdName}.`
+    };
+  } catch (e) {
+    return { success: false, message: "Gagal refresh snapshot: " + e.message };
+  }
+}
+
+function resnapshotBySubKategori(subKategori) {
+  if (!subKategori) return { success: false, message: "Sub Kategori (Urusan) tidak valid" };
+
+  try {
+    const data = _loadSharedData(getSS());
+    const soalTerkait = data.ds.filter(s => (s[2] ? s[2].toString().trim() : "Umum") === subKategori);
+    const idSoalSet = new Set(soalTerkait.map(s => s[0].toString()));
+
+    const opdSet = new Set();
+    data.dj.forEach(j => {
+      if (idSoalSet.has(j[2].toString())) {
+        opdSet.add(j[1]);
+      }
+    });
+
+    let totalCount = 0;
+    opdSet.forEach(opd => {
+      const res = resnapshotAllByOPD(opd);
+      if (res.success) totalCount += res.count;
+    });
+
+    return {
+      success: true,
+      count: totalCount,
+      message: `Berhasil memperbarui snapshot bukti dukung seluruh OPD pada Urusan "${subKategori}".`
+    };
+  } catch (e) {
+    return { success: false, message: "Gagal refresh snapshot Urusan: " + e.message };
+  }
+}
+
