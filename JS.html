@@ -1070,12 +1070,11 @@
         <h5 class="fw-bold mb-2 text-primary-emphasis">${soal.pertanyaan}</h5>
         
         <!-- Info Kriteria Pilihan & Bobot Nilai -->
-        <div class="bg-light border border-info border-opacity-25 rounded-3 p-3 mb-3">
+        <div class="border rounded-3 p-3 mb-4" style="background-color: #f0f7ff; border-color: #b8daff !important;">
           <div class="fw-bold text-primary mb-1 small text-uppercase d-flex align-items-center">
-            <i class="bi bi-info-circle-fill text-info me-2 fs-6"></i> Info Kriteria Interval & Bobot Nilai:
+            <i class="bi bi-info-circle-fill text-primary me-2 fs-6"></i> Info Kriteria Interval & Bobot Nilai:
           </div>
           ${renderKriteriaBobotBox(soal.indikator, soal.bobot_str)}
-          ${soal.penjelasan_soal ? `<div class="mt-2 text-muted small border-top pt-2"><i class="bi bi-card-text me-1"></i> <b>Petunjuk Pengisian:</b> ${soal.penjelasan_soal}</div>` : ''}
         </div>`;
         
       if(soal.jawaban_opd.length === 0) {
@@ -1121,7 +1120,7 @@
           const formattedTs = formatTimestampDisplay(ans.timestamp);
 
           html += `
-          <div class="border rounded p-3 mb-2 bg-light">
+          <div class="border rounded-3 p-3 mb-3 bg-white shadow-sm">
             <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-1">
               <span class="fw-bold text-primary"><i class="bi bi-building"></i> ${ans.opd}</span>
               <div>
