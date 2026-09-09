@@ -5,10 +5,10 @@ function getPertanyaan(namaOPD) {
     try {
       let masterPertanyaan = Firebase.getCachedMasterPertanyaan() || {};
       
-      // Jika bidang target belum ada sama sekali di Firebase, sinkronkan sekali dari Sheets
-      const hasTarget = Object.values(masterPertanyaan).some(p => p && (p.target || p.target_opd));
-      if (!hasTarget && Object.keys(masterPertanyaan).length > 0) {
-        syncTargetOPDToFirebase();
+      // Jika kategori_utama (No) atau target belum lengkap di Firebase, jalankan auto-sync dari Sheets
+      const needsSync = Object.keys(masterPertanyaan).length === 0 || Object.values(masterPertanyaan).some(p => !p || !p.kategori_utama || !p.target);
+      if (needsSync) {
+        syncMasterPertanyaanFromSheetsToFirebase();
         masterPertanyaan = Firebase.getCachedMasterPertanyaan() || {};
       }
 
@@ -161,7 +161,7 @@ function tambahSoal(payload) {
   return { status: "success", id: idSoal, message: "Soal baru berhasil ditambahkan!" };
 }
 
-function syncTargetOPDToFirebase() {
+function syncMasterPertanyaanFromSheetsToFirebase() {
   try {
     const ss = getSS();
     const sheet = ss ? ss.getSheetByName("Master_Pertanyaan") : null;
@@ -169,41 +169,34 @@ function syncTargetOPDToFirebase() {
 
     const fetchCols = Math.min(sheet.getLastColumn(), 10);
     const sheetData = sheet.getRange(2, 1, sheet.getLastRow() - 1, fetchCols).getValues();
-    const masterPertanyaan = Firebase.get("master_pertanyaan") || {};
-    let changed = false;
+    const pertObj = {};
 
     sheetData.forEach(r => {
       if (r[0]) {
         const idEscaped = Firebase.escapeKey(r[0].toString().trim());
-        const tgtVal = r[9] ? r[9].toString().trim() : "";
-        if (masterPertanyaan[idEscaped]) {
-          masterPertanyaan[idEscaped].target = tgtVal;
-          changed = true;
-        } else {
-          masterPertanyaan[idEscaped] = {
-            no: r[1] ? r[1].toString().trim() : "",
-            kategori_utama: r[1] ? r[1].toString().trim() : "",
-            urusan: r[2] ? r[2].toString().trim() : "Umum",
-            subkat: r[2] ? r[2].toString().trim() : "Umum",
-            pertanyaan: r[3] || "",
-            indikator: r[4] || "",
-            data_dukung: r[5] || "",
-            penjelasan: r[6] || "",
-            referensi: r[7] || "",
-            bobot: r[8] ? r[8].toString().trim() : "",
-            target: tgtVal
-          };
-          changed = true;
-        }
+        const katUtama = r[1] ? r[1].toString().trim() : "";
+        const urusanSub = r[2] ? r[2].toString().trim() : "Umum";
+        pertObj[idEscaped] = {
+          no: katUtama,
+          kategori_utama: katUtama,
+          urusan: urusanSub,
+          subkat: urusanSub,
+          pertanyaan: r[3] || "",
+          indikator: r[4] || "",
+          data_dukung: r[5] || "",
+          penjelasan: r[6] || "",
+          referensi: r[7] || "",
+          bobot: r[8] ? r[8].toString().trim() : "",
+          target: r[9] ? r[9].toString().trim() : ""
+        };
       }
     });
 
-    if (changed) {
-      Firebase.put("master_pertanyaan", masterPertanyaan);
-      Firebase.clearMasterPertanyaanCache();
-    }
+    Firebase.put("master_pertanyaan", pertObj);
+    Firebase.clearMasterPertanyaanCache();
+    Logger.log("Berhasil menyinkronkan seluruh Master Pertanyaan dari Sheets ke Firebase!");
   } catch (e) {
-    Logger.log("Auto-sync Target OPD ke Firebase gagal: " + e.message);
+    Logger.log("Sync Master Pertanyaan ke Firebase gagal: " + e.message);
   }
 }
 
