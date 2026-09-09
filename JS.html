@@ -856,7 +856,7 @@
             selectOptions += `<option value="${bbt}" ${isSelected}>${lab} (Bobot: ${bbt})</option>`;
           });
 
-          // Tombol Link Bukti Dukung (Snapshot vs Link Asli)
+          // Tombol Link Bukti Dukung (Snapshot vs Link Asli vs Private Alert)
           const snapshotUrl = ans.link_arsip || ans.link;
           let linkButtonsHtml = '';
 
@@ -867,6 +867,12 @@
               </a>
               <a href="${ans.link}" target="_blank" class="btn btn-sm btn-outline-warning text-dark me-1" title="Link Evd. Asli Responden (Live)">
                 <i class="bi bi-folder-symlink-fill"></i> Link Evd. Asli
+              </a>`;
+          } else if (ans.link && !ans.link_arsip && DRIVE_REGEX.test(ans.link)) {
+            // Berkas Drive tetapi snapshot gagal / belum ada (kemungkinan link private / belum di-share oleh OPD)
+            linkButtonsHtml = `
+              <a href="${ans.link}" target="_blank" class="btn btn-sm btn-outline-danger me-1" title="Sistem gagal menyalin folder ini. Kemungkinan link Google Drive diset Private/Belum di-share oleh OPD. Klik untuk membuka langsung.">
+                <i class="bi bi-lock-fill"></i> Terkunci Private (OPD)
               </a>`;
           } else {
             const btnLabel = ans.link_arsip ? '<i class="bi bi-shield-lock"></i> Snapshot Admin' : '<i class="bi bi-link"></i> Bukti';
