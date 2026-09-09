@@ -17,10 +17,12 @@ function prosesLogin(username, password) {
           let sudahIsi = false;
           if (role === "Responden") {
             try {
-              const opdEscaped = Firebase.escapeKey(nama_opd);
-              const jawabanOPD = Firebase.get(`jawaban/${opdEscaped}`);
-              if (jawabanOPD && Object.keys(jawabanOPD).length > 0) {
-                sudahIsi = true;
+              if (nama_opd && nama_opd.toString().trim() !== "") {
+                const opdEscaped = Firebase.escapeKey(nama_opd.toString().trim());
+                const jawabanOPD = Firebase.get(`jawaban/${opdEscaped}`);
+                if (jawabanOPD && Object.keys(jawabanOPD).length > 0) {
+                  sudahIsi = true;
+                }
               }
             } catch (e) {}
           }

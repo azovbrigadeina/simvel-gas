@@ -430,9 +430,22 @@ function simpanVerifikasi(payload) {
 function getStats() {
   const ss = getSS();
   
-  // Baca semua data SEKALI
-  const userSheet = ss.getSheetByName("Users");
-  const resps = userSheet.getDataRange().getValues().filter(r => r[2] === "Responden").length;
+  let resps = 0;
+  if (SETTINGS.USE_FIREBASE) {
+    try {
+      const usersData = Firebase.get("users") || {};
+      resps = Object.values(usersData).filter(u => u && (u.role === "Responden" || u.role === "responden")).length;
+    } catch (e) {
+      Logger.log("Gagal membaca users dari Firebase: " + e.message);
+    }
+  }
+
+  if (resps === 0 && ss) {
+    const userSheet = ss.getSheetByName("Users");
+    if (userSheet && userSheet.getLastRow() > 1) {
+      resps = userSheet.getDataRange().getValues().filter(r => r[2] === "Responden").length;
+    }
+  }
   
   const data = _loadSharedData(ss);
   const settings = _loadFaktorUmumGlobal(ss);
@@ -518,7 +531,8 @@ function resetJawabanOPD(opdName) {
     const opd = Firebase.escapeKey(opdName);
     Firebase.remove(`jawaban/${opd}`);
     Firebase.remove(`verifikasi/${opd}`);
-    return "Seluruh data jawaban, validasi, dan folder snapshot Drive untuk " + opdName + " berhasil di-reset!";
+    Firebase.remove(`jawaban_draft/${opd}`);
+    return "Seluruh data jawaban, draf isian, validasi, dan folder snapshot Drive untuk " + opdName + " berhasil di-reset!";
   }
 
   const ss = getSS();

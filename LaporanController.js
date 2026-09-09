@@ -141,7 +141,7 @@ function buatLaporanUrusan(namaUrusan, format) {
     const pdfFile = folder.createFile(pdfBlob);
     copyDoc.setTrashed(true); // Hapus doc sementara jika minta PDF
     // Link download langsung untuk PDF dari Google Drive
-    return "https://drive.google.com/uc?export=download&id=" + pdfFile.getId();
+    return pdfFile.getUrl();
   } else {
     // Link export langsung ke format .docx untuk Google Docs
     return "https://docs.google.com/document/d/" + copyDoc.getId() + "/export?format=docx";
