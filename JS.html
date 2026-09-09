@@ -1056,6 +1056,7 @@
             linkButtonsHtml = `<a href="${snapshotUrl}" target="_blank" class="btn btn-sm btn-outline-primary me-1">${btnLabel}</a>`;
           }
 
+          const safeOpd = (ans.opd || '').replace(/'/g, "\\'");
           const formattedTs = formatTimestampDisplay(ans.timestamp);
 
           html += `
@@ -1064,7 +1065,7 @@
               <span class="fw-bold text-primary"><i class="bi bi-building"></i> ${ans.opd}</span>
               <div>
                 <button class="btn btn-sm btn-outline-success me-1" onclick="samakanSkor(${i}, ${j}, '${ans.skala_responden}')" title="Samakan dengan Responden"><i class="bi bi-arrow-down-circle"></i> Samakan Skor</button>
-                <button class="btn btn-sm btn-outline-info me-1" onclick="doRefreshSnapshotSingleOPD('${ans.opd}')" title="Refresh Snapshot OPD ini"><i class="bi bi-arrow-repeat"></i></button>
+                <button class="btn btn-sm btn-outline-info me-1" onclick="doRefreshSnapshotSingleOPD('${safeOpd}')" title="Refresh Snapshot OPD ini"><i class="bi bi-arrow-repeat"></i></button>
                 ${linkButtonsHtml}
               </div>
             </div>
@@ -1120,6 +1121,8 @@
       vData = data; 
       document.getElementById('btn-save-val').classList.remove('hidden');
       renderValList();
+    }).withFailureHandler(err => {
+      Swal.fire('Error', 'Gagal memuat data validasi: ' + (err.message || err), 'error');
     }).getJawabanBySubKategori(subKat);
   }
 
@@ -1153,6 +1156,8 @@
     google.script.run.withSuccessHandler(() => {
       Swal.fire('Berhasil','Data verifikasi tersimpan','success');
       loadSubKat();
+    }).withFailureHandler(err => {
+      Swal.fire('Error', 'Gagal menyimpan validasi: ' + (err.message || err), 'error');
     }).simpanVerifikasi({ items: itemsToSave });
   }
 

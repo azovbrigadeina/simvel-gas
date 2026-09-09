@@ -319,19 +319,29 @@ function getJawabanBySubKategori(subKategori) {
 function simpanVerifikasi(payload) {
   if (SETTINGS.USE_FIREBASE) {
     const ts = new Date().toISOString();
-    // Gunakan opd dari elemen pertama
     if (!payload.items || payload.items.length === 0) return "Berhasil";
-    const opd = Firebase.escapeKey(payload.items[0].opd); 
-    const updates = {};
+    
+    // Kelompokkan item per-OPD agar verifikasi tersimpan ke node OPD masing-masing
+    const opdUpdatesMap = {};
     payload.items.forEach(item => {
-      updates[Firebase.escapeKey(item.id_soal.toString())] = {
+      if (!item.opd) return;
+      const opdEscaped = Firebase.escapeKey(item.opd);
+      if (!opdUpdatesMap[opdEscaped]) {
+        opdUpdatesMap[opdEscaped] = {};
+      }
+      const qIdEscaped = Firebase.escapeKey(item.id_soal.toString());
+      opdUpdatesMap[opdEscaped][qIdEscaped] = {
         timestamp: ts,
-        skala_responden: item.skala_responden !== "" ? Number(item.skala_responden) : "",
-        skala_evaluator: item.skala_evaluator !== "" ? Number(item.skala_evaluator) : "",
+        skala_responden: item.skala_responden !== "" && item.skala_responden !== null ? Number(item.skala_responden) : "",
+        skala_evaluator: item.skala_evaluator !== "" && item.skala_evaluator !== null ? Number(item.skala_evaluator) : "",
         catatan_evaluator: item.catatan || ""
       };
     });
-    Firebase.patch(`verifikasi/${opd}`, updates);
+
+    Object.entries(opdUpdatesMap).forEach(([opdEscaped, updates]) => {
+      Firebase.patch(`verifikasi/${opdEscaped}`, updates);
+    });
+
     return "Berhasil";
   }
 
