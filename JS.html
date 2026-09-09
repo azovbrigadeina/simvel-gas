@@ -1121,40 +1121,45 @@
 
           html += `
           <div class="border rounded-3 p-3 mb-3 bg-white shadow-sm">
-            <div class="d-flex justify-content-between align-items-start mb-2 flex-wrap gap-2">
+            <!-- Header Row: OPD & Buttons -->
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 pb-2 border-bottom">
               <div>
                 <h6 class="fw-bold text-primary mb-1"><i class="bi bi-building me-1"></i> ${ans.opd}</h6>
                 <span class="badge bg-light text-dark border"><i class="bi bi-clock-history text-primary me-1"></i> Submit OPD: ${formattedTs}</span>
               </div>
-              
-              <div class="d-flex flex-column align-items-end gap-2">
-                <div class="d-flex align-items-center flex-wrap gap-1">
-                  ${linkButtonsHtml}
-                  <button class="btn btn-sm btn-outline-success" onclick="samakanSkor(${i}, ${j}, '${ans.skala_responden}')" title="Samakan dengan Responden"><i class="bi bi-arrow-down-circle"></i> Samakan Skor</button>
-                  <button class="btn btn-sm btn-outline-info ms-1" onclick="doRefreshSnapshotSingleOPD('${safeOpd}')" title="Refresh Snapshot OPD ini"><i class="bi bi-arrow-repeat"></i></button>
-                </div>
-
-                <div class="bg-primary bg-opacity-10 border border-primary border-opacity-25 rounded-3 px-3 py-1 text-center d-flex align-items-center gap-3 shadow-sm">
-                  <div class="text-center">
-                    <span class="extra-small text-muted d-block text-uppercase fw-bold" style="font-size: 0.65rem; line-height: 1.1;">Pilihan Responden</span>
-                    <span class="fs-4 fw-black text-primary lh-1 text-decoration-underline" style="text-underline-offset: 3px;">${ans.pilihan_responden || '-'}</span>
-                  </div>
-                  <div class="border-start border-primary border-opacity-25 ps-3 text-center">
-                    <span class="extra-small text-muted d-block text-uppercase fw-bold" style="font-size: 0.65rem; line-height: 1.1;">Skor Responden</span>
-                    <span class="fs-5 fw-bold text-success lh-1">${ans.skala_responden !== "" && ans.skala_responden !== null ? ans.skala_responden : '-'}</span>
-                  </div>
-                </div>
+              <div class="d-flex align-items-center flex-wrap gap-1">
+                ${linkButtonsHtml}
+                <button class="btn btn-sm btn-outline-success" onclick="samakanSkor(${i}, ${j}, '${ans.skala_responden}')" title="Samakan dengan Responden"><i class="bi bi-arrow-down-circle"></i> Samakan Skor</button>
+                <button class="btn btn-sm btn-outline-info ms-1" onclick="doRefreshSnapshotSingleOPD('${safeOpd}')" title="Refresh Snapshot OPD ini"><i class="bi bi-arrow-repeat"></i></button>
               </div>
             </div>
             
-            <div class="mb-2">
-              <div class="mt-2 small bg-light p-2.5 rounded border">
-                <b>Sistem (Nilai):</b> <span class="text-dark">${ans.sistem_nilai}</span><br>
-                <b>Data Dokumen:</b> <span class="text-success">${ans.nama_dokumen}</span><br>
-                <b>Sumber & Tahun Data:</b> <span class="text-dark">${ans.sumber_data}</span><br>
-                <b>Penjelasan:</b> <span class="text-dark">${ans.penjelasan}</span>
+            <!-- Content Row: Detail Submisi (Kiri) Sejajar dengan Card Pilihan Responden (Kanan) -->
+            <div class="row g-3 mb-3 align-items-stretch">
+              <div class="col-md-8 col-lg-9">
+                <div class="small bg-light p-3 rounded-3 border h-100 d-flex flex-column justify-content-center">
+                  <div><b>Sistem (Nilai):</b> <span class="text-dark">${ans.sistem_nilai}</span></div>
+                  <div><b>Data Dokumen:</b> <span class="text-success">${ans.nama_dokumen}</span></div>
+                  <div><b>Sumber & Tahun Data:</b> <span class="text-dark">${ans.sumber_data}</span></div>
+                  <div><b>Penjelasan:</b> <span class="text-dark">${ans.penjelasan}</span></div>
+                </div>
               </div>
-            </div>
+              
+              <div class="col-md-4 col-lg-3">
+                <div class="bg-primary bg-opacity-10 border border-primary border-opacity-25 rounded-3 p-3 text-center d-flex flex-column justify-content-center h-100 shadow-sm">
+                  <div class="row g-0 align-items-center">
+                    <div class="col-6 border-end border-primary border-opacity-25">
+                      <span class="extra-small text-muted d-block text-uppercase fw-bold mb-1" style="font-size: 0.65rem; letter-spacing: 0.3px;">Pilihan Responden</span>
+                      <span class="fs-3 fw-black text-primary lh-1 text-decoration-underline" style="text-underline-offset: 3px;">${ans.pilihan_responden || '-'}</span>
+                    </div>
+                    <div class="col-6">
+                      <span class="extra-small text-muted d-block text-uppercase fw-bold mb-1" style="font-size: 0.65rem; letter-spacing: 0.3px;">Skor Responden</span>
+                      <span class="fs-4 fw-bold text-success lh-1">${ans.skala_responden !== "" && ans.skala_responden !== null ? ans.skala_responden : '-'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>`;
             <div class="row g-2">
               <div class="col-md-3">
                 <label class="small fw-bold">Skor Evaluator</label>
