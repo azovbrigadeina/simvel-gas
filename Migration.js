@@ -53,7 +53,8 @@ function migrateDataToFirebase() {
           data_dukung: r[5] || "",
           penjelasan: r[6] || "",
           referensi: r[7] || "",
-          bobot: r[8] ? r[8].toString().trim() : ""
+          bobot: r[8] ? r[8].toString().trim() : "",
+          target: r[9] ? r[9].toString().trim() : ""
         };
       }
     });
@@ -185,7 +186,7 @@ function pullFirebaseToSheetsInteractive() {
     const shPert = ss.getSheetByName("Master_Pertanyaan");
     if (shPert) {
       const pertData = Firebase.get("master_pertanyaan") || {};
-      const rows = [["id_soal", "No", "Urusan", "Pertanyaan", "Indikator Kinerja", "Data Dukung / Output", "Penjelasan Pengisian", "Referensi Aturan/Link", "Bobot"]];
+      const rows = [["id_soal", "No", "Urusan", "Pertanyaan", "Indikator Kinerja", "Data Dukung / Output", "Penjelasan Pengisian", "Referensi Aturan/Link", "Bobot", "Target OPD"]];
       Object.keys(pertData).forEach(k => {
         const p = pertData[k];
         rows.push([
@@ -197,11 +198,12 @@ function pullFirebaseToSheetsInteractive() {
           p.data_dukung || "",
           p.penjelasan || "",
           p.referensi || "",
-          p.bobot || 0
+          p.bobot || 0,
+          p.target || p.target_opd || ""
         ]);
       });
       shPert.clearContents();
-      shPert.getRange(1, 1, rows.length, 9).setValues(rows);
+      shPert.getRange(1, 1, rows.length, 10).setValues(rows);
       Logger.log("Master Pertanyaan pulled successfully.");
     }
 

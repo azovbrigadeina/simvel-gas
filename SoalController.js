@@ -3,7 +3,15 @@ function getPertanyaan(namaOPD) {
 
   if (SETTINGS.USE_FIREBASE) {
     try {
-      const masterPertanyaan = Firebase.getCachedMasterPertanyaan() || {};
+      let masterPertanyaan = Firebase.getCachedMasterPertanyaan() || {};
+      
+      // Jika bidang target belum ada sama sekali di Firebase, sinkronkan sekali dari Sheets
+      const hasTarget = Object.values(masterPertanyaan).some(p => p && (p.target || p.target_opd));
+      if (!hasTarget && Object.keys(masterPertanyaan).length > 0) {
+        syncTargetOPDToFirebase();
+        masterPertanyaan = Firebase.getCachedMasterPertanyaan() || {};
+      }
+
       Object.entries(masterPertanyaan).forEach(([idEsc, p]) => {
         const idSoal = Firebase.unescapeKey(idEsc);
         const katUtama = p.kategori_utama || p.no || "";
@@ -144,5 +152,51 @@ function tambahSoal(payload) {
   } catch (e) {}
 
   return { status: "success", id: idSoal, message: "Soal baru berhasil ditambahkan!" };
+}
+
+function syncTargetOPDToFirebase() {
+  try {
+    const ss = getSS();
+    const sheet = ss ? ss.getSheetByName("Master_Pertanyaan") : null;
+    if (!sheet || sheet.getLastRow() < 2) return;
+
+    const fetchCols = Math.min(sheet.getLastColumn(), 10);
+    const sheetData = sheet.getRange(2, 1, sheet.getLastRow() - 1, fetchCols).getValues();
+    const masterPertanyaan = Firebase.get("master_pertanyaan") || {};
+    let changed = false;
+
+    sheetData.forEach(r => {
+      if (r[0]) {
+        const idEscaped = Firebase.escapeKey(r[0].toString().trim());
+        const tgtVal = r[9] ? r[9].toString().trim() : "";
+        if (masterPertanyaan[idEscaped]) {
+          masterPertanyaan[idEscaped].target = tgtVal;
+          changed = true;
+        } else {
+          masterPertanyaan[idEscaped] = {
+            no: r[1] ? r[1].toString().trim() : "",
+            kategori_utama: r[1] ? r[1].toString().trim() : "",
+            urusan: r[2] ? r[2].toString().trim() : "Umum",
+            subkat: r[2] ? r[2].toString().trim() : "Umum",
+            pertanyaan: r[3] || "",
+            indikator: r[4] || "",
+            data_dukung: r[5] || "",
+            penjelasan: r[6] || "",
+            referensi: r[7] || "",
+            bobot: r[8] ? r[8].toString().trim() : "",
+            target: tgtVal
+          };
+          changed = true;
+        }
+      }
+    });
+
+    if (changed) {
+      Firebase.put("master_pertanyaan", masterPertanyaan);
+      Firebase.clearMasterPertanyaanCache();
+    }
+  } catch (e) {
+    Logger.log("Auto-sync Target OPD ke Firebase gagal: " + e.message);
+  }
 }
 

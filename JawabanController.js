@@ -19,7 +19,7 @@ function _loadSharedData(ss) {
       const masterPertanyaan = Firebase.getCachedMasterPertanyaan();
       Object.entries(masterPertanyaan).forEach(([id, p]) => {
         const sub = p.subkat || p.sub_kategori || (p.urusan && !p.urusan.startsWith("A.") && !p.urusan.startsWith("B.") ? p.urusan : "Umum");
-        ds.push([Firebase.unescapeKey(id), p.no || p.kategori_utama || "", sub, p.pertanyaan || "", p.indikator || "", p.data_dukung || "", p.penjelasan || "", p.referensi || "", p.bobot || ""]);
+        ds.push([Firebase.unescapeKey(id), p.no || p.kategori_utama || "", sub, p.pertanyaan || "", p.indikator || "", p.data_dukung || "", p.penjelasan || "", p.referensi || "", p.bobot || "", p.target || p.target_opd || ""]);
       });
     }
 
