@@ -483,12 +483,87 @@
         <button class="btn btn-outline-warning text-dark px-4 fw-bold me-2 ${isOPDSudahKirim ? 'd-none' : ''}" onclick="simpanDrafManual()" title="Simpan isian sementara tanpa mengirim akhir" ${disDraft}>
           <i class="bi bi-bookmark-check-fill me-1"></i> SIMPAN DRAF
         </button>
-        <button id="btn-kirim-ans" class="btn btn-primary px-5 fw-bold ${hideKirim}" onclick="${idx<cats.length-1?`showS(${idx+1})`:`finS()`}">
+        <button id="btn-kirim-ans" class="btn btn-primary px-5 fw-bold ${hideKirim}" onclick="${idx<cats.length-1?`handleLanjut(${idx})`:`finS()`}">
           ${btnLanjutKirim}
         </button>
       </div>
     </div>`;
     cont.innerHTML = h; window.scrollTo(0,0);
+  }
+
+  function validateCategory(idx) {
+    if (idx < 0 || idx >= cats.length) return true;
+    const key = cats[idx];
+    const questions = grp[key] || [];
+    let missing = [];
+
+    questions.forEach((q, qIndex) => {
+      const qId = q[0];
+      const a = ans[qId];
+      const noSoal = qIndex + 1;
+      const cardEl = document.getElementById(`q-card-${qId}`);
+      if (cardEl) cardEl.classList.remove('border-danger', 'border-3', 'shadow');
+
+      let qMissing = [];
+
+      if (!a || !a.pilihan_teks) {
+        qMissing.push("Pilihan jawaban (A/B/C/D/E)");
+      }
+      if (!a || a.sistem_nilai === undefined || a.sistem_nilai === null || String(a.sistem_nilai).trim() === "") {
+        qMissing.push("Sistem (Nilai)");
+      }
+      if (!a || !a.nama_dokumen || String(a.nama_dokumen).trim() === "") {
+        qMissing.push("Data Dokumen Pendukung");
+      }
+      if (!a || !a.link || String(a.link).trim() === "") {
+        qMissing.push("Link Bukti Dukung (Google Drive)");
+      } else if (!DRIVE_REGEX.test(String(a.link).trim())) {
+        qMissing.push("Link Bukti Dukung tidak valid (Harus link Google Drive)");
+      }
+      if (!a || !a.sumber_data || String(a.sumber_data).trim() === "") {
+        qMissing.push("Sumber Data & Tahun Data");
+      }
+      if (!a || !a.penjelasan || String(a.penjelasan).trim() === "") {
+        qMissing.push("Penjelasan");
+      }
+
+      if (qMissing.length > 0) {
+        if (cardEl) cardEl.classList.add('border-danger', 'border-3', 'shadow');
+        missing.push(`<strong>Soal No. ${noSoal}</strong>: ${qMissing.join(', ')}`);
+      }
+    });
+
+    if (missing.length > 0) {
+      Swal.fire({
+        title: 'Isian Belum Lengkap!',
+        html: `
+          <div class="text-start small" style="max-height: 280px; overflow-y: auto;">
+            <p class="text-danger fw-bold mb-2">
+              <i class="bi bi-exclamation-triangle-fill me-1"></i> 
+              Seluruh isian wajib diisi dengan lengkap & valid sebelum dapat melanjutkan ke kategori berikutnya:
+            </p>
+            <ul class="ps-3 mb-0">
+              ${missing.map(m => `<li class="mb-1">${m}</li>`).join('')}
+            </ul>
+          </div>
+        `,
+        icon: 'warning',
+        confirmButtonText: 'Lengkapi Isian',
+        confirmButtonColor: '#0d6efd'
+      });
+      return false;
+    }
+    return true;
+  }
+
+  function handleLanjut(currentIdx) {
+    if (isDeadlinePassed || isOPDSudahKirim) {
+      showS(currentIdx + 1);
+      return;
+    }
+    if (validateCategory(currentIdx)) {
+      showS(currentIdx + 1);
+    }
   }
 
   function autoSaveDraftLocal() {
@@ -585,73 +660,65 @@
   }
   
   function finS() { 
-    // Validation: Check all questions in grp
-    let missing = [];
+    // Strict Validation: Check all questions across all categories
+    let missingAll = [];
     
     Object.keys(grp).forEach(catKey => {
-      grp[catKey].forEach(q => {
+      const katInfo = parentCat[catKey] || { subkat: "Kategori" };
+      grp[catKey].forEach((q, qIndex) => {
         const qId = q[0];
         const a = ans[qId];
-        const pertanyaanShort = String(q[3] || "Soal").substring(0, 50) + "...";
+        const pertanyaanShort = String(q[3] || "Soal").substring(0, 40) + "...";
+        let qMissing = [];
         
-        if(!a || !a.pilihan_teks) {
-          missing.push(`- Pilihan jawaban pada soal: "${pertanyaanShort}" belum dipilih.`);
-        }
-        if(!a || a.sistem_nilai === undefined || a.sistem_nilai === null || String(a.sistem_nilai).trim() === "") {
-          missing.push(`- Sistem (Nilai) pada soal: "${pertanyaanShort}" belum diisi.`);
-        }
-        if(!a || !a.nama_dokumen || String(a.nama_dokumen).trim() === "") {
-          missing.push(`- Data dokumen pendukung pada soal: "${pertanyaanShort}" belum diisi.`);
-        }
+        if(!a || !a.pilihan_teks) qMissing.push("Pilihan jawaban");
+        if(!a || a.sistem_nilai === undefined || a.sistem_nilai === null || String(a.sistem_nilai).trim() === "") qMissing.push("Sistem (Nilai)");
+        if(!a || !a.nama_dokumen || String(a.nama_dokumen).trim() === "") qMissing.push("Data Dokumen Pendukung");
         if(!a || !a.link || String(a.link).trim() === "") {
-          missing.push(`- Link bukti dukung pada soal: "${pertanyaanShort}" belum diisi.`);
+          qMissing.push("Link Bukti Dukung");
         } else if(!DRIVE_REGEX.test(String(a.link).trim())) {
-          missing.push(`- Link pada soal: "${pertanyaanShort}" bukan link Google Drive yang valid.`);
+          qMissing.push("Link Google Drive tidak valid");
         }
-        if(!a || !a.sumber_data || String(a.sumber_data).trim() === "") {
-          missing.push(`- Sumber Data & Tahun Data pada soal: "${pertanyaanShort}" belum diisi.`);
-        }
-        if(!a || !a.penjelasan || String(a.penjelasan).trim() === "") {
-          missing.push(`- Penjelasan pada soal: "${pertanyaanShort}" belum diisi.`);
+        if(!a || !a.sumber_data || String(a.sumber_data).trim() === "") qMissing.push("Sumber Data");
+        if(!a || !a.penjelasan || String(a.penjelasan).trim() === "") qMissing.push("Penjelasan");
+
+        if(qMissing.length > 0) {
+          missingAll.push(`<strong>${katInfo.subkat}</strong> (Soal: "${pertanyaanShort}"): ${qMissing.join(', ')}`);
         }
       });
     });
     
-    if(missing.length > 0) {
+    if(missingAll.length > 0) {
       Swal.fire({
-        title: 'Data Belum Lengkap',
-        html: `<div class="text-start small" style="max-height: 250px; overflow-y: auto;">
-                <p class="fw-bold text-warning"><i class="bi bi-exclamation-triangle-fill me-1"></i> Terdapat ${missing.length} data yang belum diisi/valid:</p>
-                ${missing.join('<br>')}
+        title: 'Formulir Belum Lengkap',
+        html: `<div class="text-start small" style="max-height: 280px; overflow-y: auto;">
+                <p class="fw-bold text-danger mb-2"><i class="bi bi-x-circle-fill me-1"></i> Jawaban tidak dapat dikirim karena masih terdapat ${missingAll.length} data yang belum diisi/valid:</p>
+                <ul class="ps-3 mb-0">
+                  ${missingAll.map(m => `<li class="mb-1">${m}</li>`).join('')}
+                </ul>
                </div>
-               <p class="mt-3 small text-muted">Apakah Anda tetap ingin mengirim jawaban yang sudah terisi?</p>`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Tetap Kirim Jawaban',
-        cancelButtonText: 'Lengkapi Dulu',
-        confirmButtonColor: '#0d6efd',
-        cancelButtonColor: '#6c757d'
-      }).then(r => {
-        if(r.isConfirmed) {
-          executeSubmitJawaban();
-        }
+               <p class="mt-3 small text-muted">Silakan lengkapi seluruh isian wajib pada semua kategori terlebih dahulu.</p>`,
+        icon: 'error',
+        confirmButtonText: 'Lengkapi Sekarang',
+        confirmButtonColor: '#dc3545'
       });
-    } else {
-      Swal.fire({
-        title: 'Kirim Jawaban Sekarang?',
-        text: 'Pastikan semua data sudah benar. Setelah dikirim, data jawaban akan tersimpan secara definitif ke sistem.',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'Ya, Kirim Sekarang',
-        cancelButtonText: 'Batal',
-        confirmButtonColor: '#0d6efd',
-        cancelButtonColor: '#6c757d'
-      }).then(r => {
-        if(r.isConfirmed) {
-          executeSubmitJawaban();
-        }
-      });
+      return;
     }
+
+    Swal.fire({
+      title: 'Kirim Jawaban Sekarang?',
+      text: 'Pastikan semua data sudah benar. Setelah dikirim, data jawaban akan tersimpan secara definitif ke sistem.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Ya, Kirim Sekarang',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#0d6efd',
+      cancelButtonColor: '#6c757d'
+    }).then(r => {
+      if(r.isConfirmed) {
+        executeSubmitJawaban();
+      }
+    });
   }
 
   function executeSubmitJawaban() {
