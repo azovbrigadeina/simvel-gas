@@ -603,7 +603,16 @@
           try {
             localStorage.removeItem('simvel_draft_' + sess.nama_opd);
           } catch(e) {}
-          Swal.fire('Berhasil', 'Seluruh data Anda telah berhasil terkirim. Terima kasih.', 'success').then(() => location.reload());
+          Swal.fire({
+            title: 'Data Berhasil Terkirim',
+            text: 'Data sudah terkirim. Jika ada kendala, hubungi Bagian Organisasi Setda Kabupaten Muaro Jambi. Terima kasih.',
+            icon: 'success',
+            confirmButtonText: 'Saya Mengerti',
+            confirmButtonColor: '#0d6efd',
+            allowOutsideClick: false
+          }).then(() => location.reload());
+        }).withFailureHandler(err => {
+          Swal.fire('Gagal', 'Gagal mengirim data: ' + (err.message || err), 'error');
         }).simpanSemuaJawaban({opd: sess.nama_opd, jawaban: Object.values(ans)});
       }
     });
