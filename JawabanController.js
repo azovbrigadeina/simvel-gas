@@ -442,12 +442,32 @@ function getOpdSudahIsi() {
   return opds.sort();
 }
 
+function deleteArchiveFolderByOPD(opdName) {
+  try {
+    const parentArchive = getOrCreateArchiveParentFolder();
+    const cleanOpd = opdName.toString().trim();
+    const prefix = `[${cleanOpd}]`;
+    const folders = parentArchive.getFolders();
+    while (folders.hasNext()) {
+      const folder = folders.next();
+      if (folder.getName().startsWith(prefix)) {
+        folder.setTrashed(true);
+      }
+    }
+  } catch (e) {
+    Logger.log("Gagal menghapus folder arsip Drive OPD: " + e.toString());
+  }
+}
+
 function resetJawabanOPD(opdName) {
+  // Pindahkan folder snapshot Drive milik OPD ini ke Trash Drive Admin
+  deleteArchiveFolderByOPD(opdName);
+
   if (SETTINGS.USE_FIREBASE) {
     const opd = Firebase.escapeKey(opdName);
     Firebase.remove(`jawaban/${opd}`);
     Firebase.remove(`verifikasi/${opd}`);
-    return "Seluruh data jawaban dan validasi untuk " + opdName + " berhasil di-reset!";
+    return "Seluruh data jawaban, validasi, dan folder snapshot Drive untuk " + opdName + " berhasil di-reset!";
   }
 
   const ss = getSS();
@@ -455,7 +475,6 @@ function resetJawabanOPD(opdName) {
   
   if (jSheet.getLastRow() > 1) {
     const jData = jSheet.getDataRange().getValues();
-    // Gunakan filter array di memori, bukan hapus baris satu per satu
     const newData = jData.filter((row, i) => i === 0 || row[1].toString() !== opdName);
     
     jSheet.clearContents();
@@ -464,10 +483,9 @@ function resetJawabanOPD(opdName) {
     }
   }
   
-  // Hapus dari sheet Verifikasi juga
   resetValidasiOPD(opdName);
   
-  return "Seluruh data jawaban dan validasi untuk " + opdName + " berhasil di-reset!";
+  return "Seluruh data jawaban, validasi, dan folder snapshot Drive untuk " + opdName + " berhasil di-reset!";
 }
 
 function resetValidasiOPD(opdName) {
