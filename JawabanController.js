@@ -662,3 +662,27 @@ function resnapshotBySubKategori(subKategori) {
   }
 }
 
+function resnapshotAllExistingOPDs() {
+  try {
+    const listOPD = getOPDSudahKirim();
+    let totalCount = 0;
+    const results = [];
+    listOPD.forEach(opd => {
+      const res = resnapshotAllByOPD(opd);
+      if (res.success) {
+        totalCount += res.count;
+        results.push(`${opd}: ${res.count} item`);
+      }
+    });
+    return {
+      success: true,
+      total: totalCount,
+      details: results,
+      message: `Selesai memproses snapshot ulang untuk ${listOPD.length} OPD (Total ${totalCount} bukti dukung di-snapshot).`
+    };
+  } catch (e) {
+    return { success: false, message: "Gagal memproses snapshot massal: " + e.message };
+  }
+}
+
+
