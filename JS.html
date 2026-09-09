@@ -28,6 +28,9 @@
     cats = [];
     ans = {};
     vData = [];
+    try {
+      localStorage.removeItem('simvel_session');
+    } catch(e) {}
     
     // Sembunyikan panel evaluator, responden & sidebar
     document.getElementById('sidebar').classList.add('hidden');
@@ -85,6 +88,47 @@
     setTimeout(() => el.classList.add('hidden'), 500);
   }
 
+  function applySession(res) {
+    sess = res;
+    try {
+      localStorage.setItem('simvel_session', JSON.stringify(res));
+    } catch(e) {}
+
+    document.getElementById('p-land').classList.add('hidden');
+    showLoadingScreen('Menyiapkan antarmuka...');
+
+    if(res.role === "Responden") {
+      if(res.sudahIsi) {
+         hideLoadingScreen();
+         Swal.fire('Info', 'Anda sudah melakukan pengisian.', 'info').then(() => {
+           handleLogout();
+         });
+         return;
+      }
+      document.getElementById('p-resp').classList.remove('hidden');
+      document.getElementById('opd-name').innerText = res.nama_opd;
+      updateLoadingStatus('Mengambil data pertanyaan dari server...');
+      initR();
+    } else {
+      document.getElementById('sidebar').classList.remove('hidden');
+      document.getElementById('p-eval').classList.remove('hidden');
+      
+      document.getElementById('l-pengaturan').classList.remove('hidden');
+      document.getElementById('l-laporan').classList.remove('hidden');
+      document.getElementById('l-reset').classList.remove('hidden');
+      
+      if(res.role === "Admin") {
+        document.getElementById('sidebar-title').innerText = "ADMIN";
+        document.getElementById('l-user').classList.remove('hidden');
+      } else {
+        document.getElementById('sidebar-title').innerText = "EVALUATOR";
+      }
+      updateLoadingStatus('Memuat dashboard monitoring...');
+      loadStats();
+      setTimeout(() => hideLoadingScreen(), 1200);
+    }
+  }
+
   function handleLoginSubmit() {
     const u = document.getElementById('login-username').value;
     const p = document.getElementById('login-password').value;
@@ -98,42 +142,25 @@
     google.script.run.withSuccessHandler(res => {
       Swal.close();
       if(res.status === "success") {
-        sess = res;
-        document.getElementById('p-land').classList.add('hidden');
-        
-        // Tampilkan loading screen
-        showLoadingScreen('Login berhasil! Menyiapkan antarmuka...');
-        
-        if(res.role === "Responden") {
-          if(res.sudahIsi) {
-             hideLoadingScreen();
-             Swal.fire('Info', 'Anda sudah melakukan pengisian.', 'info').then(() => location.reload());
-             return;
-          }
-          document.getElementById('p-resp').classList.remove('hidden');
-          document.getElementById('opd-name').innerText = res.nama_opd;
-          updateLoadingStatus('Mengambil data pertanyaan dari server...');
-          initR();
-        } else {
-          document.getElementById('sidebar').classList.remove('hidden');
-          document.getElementById('p-eval').classList.remove('hidden');
-          
-          document.getElementById('l-pengaturan').classList.remove('hidden');
-          document.getElementById('l-laporan').classList.remove('hidden');
-          document.getElementById('l-reset').classList.remove('hidden');
-          
-          if(res.role === "Admin") {
-            document.getElementById('sidebar-title').innerText = "ADMIN";
-            document.getElementById('l-user').classList.remove('hidden');
-          }
-          updateLoadingStatus('Memuat dashboard monitoring...');
-          loadStats();
-          // Evaluator: hide loading screen after content starts loading
-          setTimeout(() => hideLoadingScreen(), 1500);
-        }
-      } else Swal.fire('Error', res.message, 'error');
+        applySession(res);
+      } else {
+        Swal.fire('Error', res.message, 'error');
+      }
     }).prosesLogin(u, p);
   }
+
+  // Restore persistent session on page refresh
+  document.addEventListener('DOMContentLoaded', function () {
+    try {
+      const savedSessStr = localStorage.getItem('simvel_session');
+      if (savedSessStr) {
+        const savedSess = JSON.parse(savedSessStr);
+        if (savedSess && savedSess.status === "success" && savedSess.role) {
+          applySession(savedSess);
+        }
+      }
+    } catch(e) {}
+  });
 
   // Handle Enter Key
   document.addEventListener('keypress', function (e) {
