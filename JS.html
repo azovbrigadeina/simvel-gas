@@ -1,3 +1,4 @@
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
   let sess = {}, grp = {}, cats = [], ans = {}, vData = [];
@@ -1555,7 +1556,7 @@
     document.getElementById('tsoal-bobot').value = "100|80|60|40|20";
     const mEl = document.getElementById('modalTambahSoal');
     if (mEl) {
-      const modal = new bootstrap.Modal(mEl);
+      const modal = bootstrap.Modal.getOrCreateInstance(mEl);
       modal.show();
     }
   }
@@ -1587,10 +1588,10 @@
       Swal.close();
       const mEl = document.getElementById('modalTambahSoal');
       if (mEl) {
-        const modal = bootstrap.Modal.getInstance(mEl);
+        const modal = bootstrap.Modal.getOrCreateInstance(mEl);
         if (modal) modal.hide();
       }
-      Swal.fire('Sukses', 'Soal baru berhasil ditambahkan!', 'success');
+      Swal.fire('Sukses', (res && res.message) ? res.message : 'Soal baru berhasil ditambahkan!', 'success');
       loadSoal();
     }).withFailureHandler(err => {
       Swal.fire('Gagal', (err && err.message) ? err.message : 'Gagal menyimpan soal baru', 'error');
