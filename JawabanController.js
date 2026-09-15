@@ -441,18 +441,24 @@ function getOrCreateArchiveParentFolder() {
   return DriveApp.createFolder(folderName);
 }
 
-function copyFolderRecursive(sourceFolder, targetFolder) {
+function copyFolderRecursive(sourceFolder, targetFolder, state) {
+  if (!state) state = { count: 0, max: 50 };
+  if (state.count >= state.max) return;
+
   const files = sourceFolder.getFiles();
-  while (files.hasNext()) {
+  while (files.hasNext() && state.count < state.max) {
     const file = files.next();
     file.makeCopy(file.getName(), targetFolder);
+    state.count++;
   }
 
+  if (state.count >= state.max) return;
+
   const subfolders = sourceFolder.getFolders();
-  while (subfolders.hasNext()) {
+  while (subfolders.hasNext() && state.count < state.max) {
     const subfolder = subfolders.next();
     const newSubFolder = targetFolder.createFolder(subfolder.getName());
-    copyFolderRecursive(subfolder, newSubFolder);
+    copyFolderRecursive(subfolder, newSubFolder, state);
   }
 }
 

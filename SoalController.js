@@ -100,7 +100,20 @@ function tambahSoal(payload) {
   Firebase.put(`master_pertanyaan/${escapedId}`, soalObj);
   Firebase.clearMasterPertanyaanCache();
 
-  return { status: "success", id: idSoal, message: "Soal baru berhasil ditambahkan!" };
+  return { status: "success", id: idSoal, message: "Soal berhasil disimpan!" };
+}
+
+function hapusSoal(id) {
+  if (!id) throw new Error("ID Soal tidak valid!");
+  try {
+    const escapedId = Firebase.escapeKey(id.toString());
+    Firebase.remove(`master_pertanyaan/${escapedId}`);
+    Firebase.clearMasterPertanyaanCache();
+    return { status: "success", message: "Soal berhasil dihapus!" };
+  } catch (e) {
+    Logger.log("Gagal menghapus soal di Firebase: " + e.message);
+    throw new Error("Gagal menghapus soal: " + e.message);
+  }
 }
 
 

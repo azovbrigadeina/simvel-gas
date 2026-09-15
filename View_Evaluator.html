@@ -53,7 +53,7 @@
     </div>
     <div class="table-responsive bg-white p-3 rounded shadow-sm">
       <table class="table table-sm align-middle">
-        <thead><tr><th>ID</th><th>Kategori Utama (B)</th><th>Sub Kategori (C)</th><th>Pertanyaan (D)</th><th>Bobot (I)</th><th>Target OPD (J)</th></tr></thead>
+        <thead><tr><th>ID</th><th>Kategori Utama (B)</th><th>Sub Kategori (C)</th><th>Pertanyaan (D)</th><th>Indikator Kinerja (E)</th><th>Bobot (I)</th><th>Target OPD (J)</th><th class="text-center" style="width: 100px;">Aksi</th></tr></thead>
         <tbody id="t-soal-body"></tbody>
       </table>
     </div>
@@ -256,6 +256,10 @@
                 <textarea id="tsoal-pertanyaan" class="form-control" rows="3" placeholder="Tuliskan isi pertanyaan kuesioner..." required></textarea>
               </div>
               <div class="col-12">
+                <label class="form-label fw-bold small">Indikator Kinerja (Kolom E)</label>
+                <textarea id="tsoal-indikator" class="form-control" rows="2" placeholder="Tuliskan indikator kinerja..."></textarea>
+              </div>
+              <div class="col-12">
                 <label class="form-label fw-bold small">Bobot Nilai (A|B|C|D|E) (Kolom I)</label>
                 <input type="text" id="tsoal-bobot" class="form-control" placeholder="Default: 100|80|60|40|20" value="100|80|60|40|20">
               </div>
@@ -265,6 +269,56 @@
         <div class="modal-footer bg-light">
           <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Batal</button>
           <button type="button" class="btn btn-primary px-4 fw-bold" onclick="simpanSoalBaruAction()">Simpan Soal</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Edit Soal -->
+  <div class="modal fade" id="modalEditSoal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title fw-bold" id="modalEditSoalLabel"><i class="bi bi-pencil-square me-2"></i>Edit Detail Soal</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="form-edit-soal">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-bold small">ID Soal</label>
+                <input type="text" id="esoal-id" class="form-control" readonly disabled>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold small">Kategori Utama (Kolom B)</label>
+                <input type="text" id="esoal-kategori" class="form-control" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold small">Sub Kategori (Kolom C)</label>
+                <input type="text" id="esoal-subkategori" class="form-control" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold small">Target OPD (Kolom J)</label>
+                <input type="text" id="esoal-target" class="form-control" placeholder="Kosongkan jika untuk semua OPD">
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-bold small">Pertanyaan (Kolom D)</label>
+                <textarea id="esoal-pertanyaan" class="form-control" rows="3" required></textarea>
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-bold small">Indikator Kinerja (Kolom E)</label>
+                <textarea id="esoal-indikator" class="form-control" rows="2"></textarea>
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-bold small">Bobot Nilai (A|B|C|D|E) (Kolom I)</label>
+                <input type="text" id="esoal-bobot" class="form-control" placeholder="Default: 100|80|60|40|20">
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Batal</button>
+          <button type="button" class="btn btn-warning px-4 fw-bold" onclick="simpanEditSoalAction()">Simpan Perubahan</button>
         </div>
       </div>
     </div>

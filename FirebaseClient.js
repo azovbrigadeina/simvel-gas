@@ -136,7 +136,11 @@ const Firebase = {
     }
     const pert = this.get("master_pertanyaan") || {};
     try {
-      cache.put("simvel_master_pertanyaan", JSON.stringify(pert), 1800); // 30 menit
+      const strPert = JSON.stringify(pert);
+      // CacheService membatasi maksimum 100KB per item. Jika melebihi 90KB, lewati cache agar tidak crash.
+      if (strPert.length < 90000) {
+        cache.put("simvel_master_pertanyaan", strPert, 1800); // 30 menit
+      }
     } catch (e) {}
     return pert;
   },
@@ -153,7 +157,13 @@ const Firebase = {
         return JSON.parse(cached);
       } catch (e) {}
     }
-    const opd = this.get("master_opd") || [];
+    const opdRaw = this.get("master_opd");
+    let opd = [];
+    if (Array.isArray(opdRaw)) {
+      opd = opdRaw;
+    } else if (opdRaw && typeof opdRaw === 'object') {
+      opd = Object.values(opdRaw);
+    }
     try {
       cache.put("simvel_master_opd", JSON.stringify(opd), 1800); // 30 menit
     } catch (e) {}

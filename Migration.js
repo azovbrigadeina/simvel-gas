@@ -125,9 +125,22 @@ function migrateDataToFirebase() {
  */
 function syncSheetsToFirebaseInteractive() {
   const ui = SpreadsheetApp.getUi();
+  
+  // Cek apakah ada data jawaban aktif di Firebase
+  let existingAnswersCount = 0;
+  try {
+    const existingJawaban = Firebase.get("jawaban") || {};
+    existingAnswersCount = Object.keys(existingJawaban).length;
+  } catch (e) {}
+
+  let warningMsg = "Apakah Anda yakin ingin MENGIRIM seluruh data dari Sheets saat ini untuk menimpa database Firebase?\n\n(Tindakan ini akan menimpa data di Firebase dengan data dari Sheets ini)";
+  if (existingAnswersCount > 0) {
+    warningMsg = `⚠️ PERINGATAN KERAS!\n\nTerdapat ${existingAnswersCount} OPD yang memiliki data jawaban aktif di Firebase!\n\nJika Anda melakukan Push dari Sheets, SELURUH JAWABAN RESPONDEN DI FIREBASE AKAN TERHAPUS/TERTIMPA DATA DARI SPREADSHEET INI.\n\nApakah Anda BENAR-BENAR YAKIN ingin melanjutkan?`;
+  }
+
   const response = ui.alert(
-    "Konfirmasi Push Data",
-    "Apakah Anda yakin ingin MENGIRIM seluruh data dari Sheets saat ini untuk menimpa database Firebase?\n\n(Tindakan ini akan menimpa data di Firebase dengan data dari Sheets ini)",
+    "Konfirmasi Push Data ke Firebase",
+    warningMsg,
     ui.ButtonSet.YES_NO
   );
   
