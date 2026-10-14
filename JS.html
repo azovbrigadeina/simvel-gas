@@ -1064,6 +1064,7 @@
           <td><input type="text" class="form-control form-control-sm" value="${q[8]||''}" onchange="google.script.run.updateSoal('${q[0]}', 8, this.value)"></td>
           <td><input type="text" class="form-control form-control-sm" value="${q[9]||''}" onchange="google.script.run.updateSoal('${q[0]}', 9, this.value)"></td>
           <td class="text-center text-nowrap">
+            <button class="btn btn-sm btn-outline-success me-1" onclick="duplikatSoalAction(${idx})" title="Duplikat Soal"><i class="bi bi-copy"></i></button>
             <button class="btn btn-sm btn-outline-primary me-1" onclick="showModalEditSoal(${idx})" title="Edit Detail Soal"><i class="bi bi-pencil-square"></i></button>
             <button class="btn btn-sm btn-outline-danger" onclick="hapusSoalAction('${q[0]}')" title="Hapus Soal"><i class="bi bi-trash"></i></button>
           </td>
@@ -1553,6 +1554,114 @@
     });
   }
 
+  function generateNextSoalId(currentId) {
+    const existingIds = (globalMasterSoalData || []).map(r => (r[0] || '').toString().trim());
+    const match = (currentId || '').toString().trim().match(/^([A-Za-z_-]*)(\d+)$/);
+    if (match) {
+      const prefix = match[1];
+      let num = parseInt(match[2], 10);
+      let candidate = '';
+      do {
+        num++;
+        candidate = prefix + num;
+      } while (existingIds.includes(candidate));
+      return candidate;
+    }
+    let copyId = currentId + "_COPY";
+    let counter = 1;
+    while (existingIds.includes(copyId)) {
+      counter++;
+      copyId = currentId + "_COPY" + counter;
+    }
+    return copyId;
+  }
+
+  function duplikatSoalAction(idx) {
+    const q = globalMasterSoalData[idx];
+    if (!q) return;
+
+    const currentId = (q[0] || "").toString().trim();
+    const nextId = generateNextSoalId(currentId);
+
+    Swal.fire({
+      title: 'Duplikat Soal',
+      html: `
+        <div class="text-start small">
+          <p class="mb-2">Menduplikasi soal ID: <strong class="text-primary">${currentId}</strong></p>
+          <div class="mb-3">
+            <label class="form-label fw-bold">ID Soal Baru:</label>
+            <input type="text" id="swal-dup-id" class="form-control" value="${nextId}">
+          </div>
+          <div class="p-2 bg-light rounded border text-muted" style="max-height: 80px; overflow-y: auto; font-size: 0.82rem;">
+            <em>"${(q[3] || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}"</em>
+          </div>
+        </div>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      showDenyButton: true,
+      confirmButtonText: '<i class="bi bi-copy me-1"></i> Duplikat Langsung',
+      denyButtonText: '<i class="bi bi-pencil-square me-1"></i> Edit Dulu',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#10B981',
+      denyButtonColor: '#0057B7',
+      cancelButtonColor: '#6c757d',
+      preConfirm: () => {
+        const newId = document.getElementById('swal-dup-id').value.trim();
+        if (!newId) {
+          Swal.showValidationMessage('ID Soal Baru tidak boleh kosong!');
+          return false;
+        }
+        return newId;
+      }
+    }).then(res => {
+      if (res.isConfirmed) {
+        const newId = res.value;
+        const payload = {
+          id: newId,
+          kategori: q[1] || "",
+          subKategori: q[2] || "",
+          pertanyaan: q[3] || "",
+          indikator: q[4] || "",
+          bobot: q[8] || "100|80|60|40|20",
+          targetOPD: q[9] || ""
+        };
+
+        Swal.showLoading();
+        google.script.run.withSuccessHandler(r => {
+          Swal.close();
+          Swal.fire('Berhasil!', `Soal berhasil diduplikasi menjadi <strong>${newId}</strong>!`, 'success');
+          loadSoal();
+        }).withFailureHandler(err => {
+          Swal.fire('Gagal', (err && err.message) ? err.message : 'Gagal menduplikasi soal', 'error');
+        }).tambahSoal(payload);
+
+      } else if (res.isDenied) {
+        const inputId = document.getElementById('swal-dup-id') ? document.getElementById('swal-dup-id').value.trim() : nextId;
+        const finalId = inputId || nextId;
+
+        document.getElementById('tsoal-id').value = finalId;
+        document.getElementById('tsoal-kategori').value = q[1] || "";
+        document.getElementById('tsoal-subkategori').value = q[2] || "";
+        document.getElementById('tsoal-target').value = q[9] || "";
+        document.getElementById('tsoal-pertanyaan').value = q[3] || "";
+        if (document.getElementById('tsoal-indikator')) document.getElementById('tsoal-indikator').value = q[4] || "";
+        document.getElementById('tsoal-bobot').value = q[8] || "100|80|60|40|20";
+
+        const titleEl = document.querySelector('#modalTambahSoal .modal-title') || document.getElementById('modalTambahSoalLabel');
+        if (titleEl) {
+          titleEl.innerHTML = `<i class="bi bi-copy me-2 text-success"></i>Duplikat Soal (dari ${currentId})`;
+        }
+
+        const mEl = document.getElementById('modalTambahSoal');
+        if (mEl) {
+          const modal = bootstrap.Modal.getOrCreateInstance(mEl);
+          modal.show();
+        }
+      }
+    });
+  }
+
   function showModalTambahSoal() {
     document.getElementById('tsoal-id').value = "";
     document.getElementById('tsoal-kategori').value = "";
@@ -1561,6 +1670,12 @@
     document.getElementById('tsoal-pertanyaan').value = "";
     if (document.getElementById('tsoal-indikator')) document.getElementById('tsoal-indikator').value = "";
     document.getElementById('tsoal-bobot').value = "100|80|60|40|20";
+    
+    const titleEl = document.querySelector('#modalTambahSoal .modal-title') || document.getElementById('modalTambahSoalLabel');
+    if (titleEl) {
+      titleEl.innerHTML = `<i class="bi bi-plus-circle me-2"></i>Tambah Soal Baru`;
+    }
+
     const mEl = document.getElementById('modalTambahSoal');
     if (mEl) {
       const modal = bootstrap.Modal.getOrCreateInstance(mEl);
