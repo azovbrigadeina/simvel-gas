@@ -1512,34 +1512,53 @@
   // Kelola User Script
   let usersData = [];
   let listMasterOPD = [];
-  function loadUsers() {
-    Swal.showLoading();
+  function loadUsers(silent = false) {
+    if (!silent) Swal.showLoading();
     if (listMasterOPD.length === 0) {
       google.script.run.withSuccessHandler(opdList => {
         listMasterOPD = opdList;
-        fetchUsers();
+        fetchUsers(silent);
+      }).withFailureHandler(err => {
+        if (!silent) Swal.fire('Error', 'Gagal memuat OPD: ' + (err.message || err), 'error');
       }).getMasterOPDList();
     } else {
-      fetchUsers();
+      fetchUsers(silent);
     }
   }
   
-  function fetchUsers() {
+  function fetchUsers(silent = false) {
     google.script.run.withSuccessHandler(data => {
       usersData = data;
-      Swal.close();
-      document.getElementById('t-user-body').innerHTML = data.map(u => `
-        <tr>
-          <td>${u[0]}</td>
-          <td>${u[1]}</td>
-          <td><span class="badge ${u[2]==='Admin'?'bg-danger':u[2]==='Evaluator'?'bg-primary':'bg-success'}">${u[2]}</span></td>
-          <td>${u[3] || '-'}</td>
-          <td class="text-end">
-            <button class="btn btn-sm btn-outline-primary" onclick="formUser('${u[0]}')"><i class="bi bi-pencil"></i></button>
-            <button class="btn btn-sm btn-outline-danger" onclick="hapusUserAction('${u[0]}')"><i class="bi bi-trash"></i></button>
-          </td>
-        </tr>`).join('');
+      if (!silent) Swal.close();
+      const tbody = document.getElementById('t-user-body');
+      if (tbody) {
+        tbody.innerHTML = data.map((u, i) => `
+          <tr>
+            <td class="fw-bold">${u[0]}</td>
+            <td>${u[1]}</td>
+            <td><span class="badge ${u[2]==='Admin'?'bg-danger':u[2]==='Evaluator'?'bg-primary':'bg-success'}">${u[2]}</span></td>
+            <td>${u[3] || '-'}</td>
+            <td class="text-end">
+              <button class="btn btn-sm btn-outline-primary me-1" onclick="formUserByIndex(${i})" title="Edit User"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger" onclick="hapusUserByIndex(${i})" title="Hapus User"><i class="bi bi-trash"></i></button>
+            </td>
+          </tr>`).join('');
+      }
+    }).withFailureHandler(err => {
+      if (!silent) Swal.fire('Error', 'Gagal mengambil data user: ' + (err.message || err), 'error');
     }).getUsersData();
+  }
+
+  function formUserByIndex(idx) {
+    if (usersData && usersData[idx]) {
+      formUser(usersData[idx][0]);
+    }
+  }
+
+  function hapusUserByIndex(idx) {
+    if (usersData && usersData[idx]) {
+      hapusUserAction(usersData[idx][0]);
+    }
   }
 
   function formUser(oldU = '') {
@@ -1579,23 +1598,47 @@
       showCancelButton: true,
       confirmButtonText: 'Simpan',
       preConfirm: () => {
-        return [
-          document.getElementById('swal-u').value,
-          document.getElementById('swal-p').value,
-          document.getElementById('swal-r').value,
-          document.getElementById('swal-o').value || '-'
-        ]
+        const uVal = (document.getElementById('swal-u').value || '').trim();
+        const pVal = (document.getElementById('swal-p').value || '').trim();
+        const rVal = document.getElementById('swal-r').value;
+        const oVal = (document.getElementById('swal-o').value || '').trim() || '-';
+        if (!uVal || !pVal) {
+          Swal.showValidationMessage('Username & Password wajib diisi!');
+          return false;
+        }
+        return [uVal, pVal, rVal, oVal];
       }
     }).then(res => {
-      if(res.isConfirmed) {
-        if(!res.value[0] || !res.value[1]) return Swal.fire('Error', 'Username & Password wajib diisi!', 'error');
+      if(res.isConfirmed && res.value) {
         Swal.showLoading();
         if(oldU) {
-          google.script.run.withSuccessHandler(r => r.status==='success'? (Swal.fire('Sukses',r.message,'success'), loadUsers()) : Swal.fire('Error',r.message,'error'))
-          .updateUser(oldU, res.value);
+          google.script.run
+            .withSuccessHandler(r => {
+              if (r && r.status === 'success') {
+                Swal.fire({ icon: 'success', title: 'Sukses', text: r.message, timer: 1500, showConfirmButton: false });
+                loadUsers(true);
+              } else {
+                Swal.fire('Error', (r && r.message) ? r.message : 'Gagal memperbarui user', 'error');
+              }
+            })
+            .withFailureHandler(err => {
+              Swal.fire('Error', 'Gagal memproses ke server: ' + (err.message || err), 'error');
+            })
+            .updateUser(oldU, res.value);
         } else {
-          google.script.run.withSuccessHandler(r => r.status==='success'? (Swal.fire('Sukses',r.message,'success'), loadUsers()) : Swal.fire('Error',r.message,'error'))
-          .tambahUser(res.value);
+          google.script.run
+            .withSuccessHandler(r => {
+              if (r && r.status === 'success') {
+                Swal.fire({ icon: 'success', title: 'Sukses', text: r.message, timer: 1500, showConfirmButton: false });
+                loadUsers(true);
+              } else {
+                Swal.fire('Error', (r && r.message) ? r.message : 'Gagal menambahkan user', 'error');
+              }
+            })
+            .withFailureHandler(err => {
+              Swal.fire('Error', 'Gagal memproses ke server: ' + (err.message || err), 'error');
+            })
+            .tambahUser(res.value);
         }
       }
     });
@@ -1607,8 +1650,19 @@
     .then(r => {
       if(r.isConfirmed) {
         Swal.showLoading();
-        google.script.run.withSuccessHandler(res => res.status==='success'? (Swal.fire('Terhapus',res.message,'success'), loadUsers()) : Swal.fire('Error',res.message,'error'))
-        .hapusUser(uname);
+        google.script.run
+          .withSuccessHandler(res => {
+            if (res && res.status === 'success') {
+              Swal.fire({ icon: 'success', title: 'Terhapus', text: res.message, timer: 1500, showConfirmButton: false });
+              loadUsers(true);
+            } else {
+              Swal.fire('Error', (res && res.message) ? res.message : 'Gagal menghapus user', 'error');
+            }
+          })
+          .withFailureHandler(err => {
+            Swal.fire('Error', 'Gagal menghapus user: ' + (err.message || err), 'error');
+          })
+          .hapusUser(uname);
       }
     });
   }

@@ -34,12 +34,18 @@ const Firebase = {
     return SETTINGS.FIREBASE_SECRET || "";
   },
 
-  get: function(path) {
+  buildUrl: function(path) {
     const dbUrl = this.getDbUrl();
     const secret = this.getSecret();
     if (!dbUrl) throw new Error("Firebase Database URL belum dikonfigurasi.");
 
-    const url = `${dbUrl}/${path}.json${secret ? '?auth=' + secret : ''}`;
+    // Encode each path segment separately to preserve '/' while encoding %, spaces, dots, etc.
+    const encodedPath = (path || "").toString().split("/").map(seg => encodeURIComponent(seg)).join("/");
+    return `${dbUrl}/${encodedPath}.json${secret ? '?auth=' + secret : ''}`;
+  },
+
+  get: function(path) {
+    const url = this.buildUrl(path);
     const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
     
     if (response.getResponseCode() !== 200) {
@@ -49,11 +55,7 @@ const Firebase = {
   },
 
   put: function(path, data) {
-    const dbUrl = this.getDbUrl();
-    const secret = this.getSecret();
-    if (!dbUrl) throw new Error("Firebase Database URL belum dikonfigurasi.");
-
-    const url = `${dbUrl}/${path}.json${secret ? '?auth=' + secret : ''}`;
+    const url = this.buildUrl(path);
     const options = {
       method: 'put',
       contentType: 'application/json',
@@ -69,11 +71,7 @@ const Firebase = {
   },
 
   patch: function(path, data) {
-    const dbUrl = this.getDbUrl();
-    const secret = this.getSecret();
-    if (!dbUrl) throw new Error("Firebase Database URL belum dikonfigurasi.");
-
-    const url = `${dbUrl}/${path}.json${secret ? '?auth=' + secret : ''}`;
+    const url = this.buildUrl(path);
     const options = {
       method: 'patch',
       contentType: 'application/json',
@@ -89,11 +87,7 @@ const Firebase = {
   },
 
   post: function(path, data) {
-    const dbUrl = this.getDbUrl();
-    const secret = this.getSecret();
-    if (!dbUrl) throw new Error("Firebase Database URL belum dikonfigurasi.");
-
-    const url = `${dbUrl}/${path}.json${secret ? '?auth=' + secret : ''}`;
+    const url = this.buildUrl(path);
     const options = {
       method: 'post',
       contentType: 'application/json',
@@ -109,11 +103,7 @@ const Firebase = {
   },
 
   remove: function(path) {
-    const dbUrl = this.getDbUrl();
-    const secret = this.getSecret();
-    if (!dbUrl) throw new Error("Firebase Database URL belum dikonfigurasi.");
-
-    const url = `${dbUrl}/${path}.json${secret ? '?auth=' + secret : ''}`;
+    const url = this.buildUrl(path);
     const options = {
       method: 'delete',
       muteHttpExceptions: true

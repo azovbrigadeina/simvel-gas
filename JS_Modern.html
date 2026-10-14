@@ -530,4 +530,42 @@
       if (activeCard) activeCard.classList.add('selected');
     }
   };
+
+  // 6. Modern User Management Table Renderer
+  window.fetchUsers = function(silent = false) {
+    google.script.run.withSuccessHandler(data => {
+      usersData = data;
+      if (!silent) Swal.close();
+      const tbody = document.getElementById('t-user-body');
+      if (tbody) {
+        tbody.innerHTML = data.map((u, i) => {
+          let roleBadge = '';
+          if (u[2] === 'Admin') {
+            roleBadge = '<span class="badge badge-soft-danger"><i class="bi bi-shield-lock-fill me-1"></i> Admin</span>';
+          } else if (u[2] === 'Evaluator') {
+            roleBadge = '<span class="badge badge-soft-primary"><i class="bi bi-person-check-fill me-1"></i> Evaluator</span>';
+          } else {
+            roleBadge = '<span class="badge badge-soft-success"><i class="bi bi-building me-1"></i> Responden</span>';
+          }
+          return `
+          <tr>
+            <td class="fw-bold text-dark">${u[0]}</td>
+            <td><code class="text-muted fw-semibold" style="letter-spacing: 1px;">${u[1]}</code></td>
+            <td>${roleBadge}</td>
+            <td class="text-muted small">${u[3] || '-'}</td>
+            <td class="text-end">
+              <button class="btn btn-sm btn-modern-outline text-primary me-1 px-2 py-1" onclick="formUserByIndex(${i})" title="Edit User">
+                <i class="bi bi-pencil-square"></i>
+              </button>
+              <button class="btn btn-sm btn-modern-outline text-danger px-2 py-1" onclick="hapusUserByIndex(${i})" title="Hapus User">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          </tr>`;
+        }).join('');
+      }
+    }).withFailureHandler(err => {
+      if (!silent) Swal.fire('Error', 'Gagal memuat pengguna: ' + (err.message || err), 'error');
+    }).getUsersData();
+  };
 </script>
