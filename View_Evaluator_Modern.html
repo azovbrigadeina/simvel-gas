@@ -40,38 +40,39 @@
     </div>
   </div>
 
-  <div class="nav flex-column flex-grow-1 overflow-y-auto">
+  <!-- Navigation Menu List -->
+  <div class="sidebar-nav-scroll flex-grow-1 d-flex flex-column flex-nowrap">
     <div class="sidebar-menu-category">Menu Utama</div>
     <a class="nav-link active" id="l-dash" onclick="showV('dash'); closeSidebarOnMobile();">
-      <i class="bi bi-grid-1x2-fill me-2"></i> Dashboard
-    </a>
-    <a class="nav-link" id="l-val" onclick="showV('val'); closeSidebarOnMobile();">
-      <i class="bi bi-clipboard2-check-fill me-2"></i> Validasi Nilai
+      <i class="bi bi-grid-1x2-fill me-2"></i> <span>Dashboard</span>
     </a>
 
-    <div class="sidebar-menu-category">Data & Laporan</div>
+    <div class="sidebar-menu-category">Penilaian & Laporan</div>
+    <a class="nav-link" id="l-val" onclick="showV('val'); closeSidebarOnMobile();">
+      <i class="bi bi-clipboard2-check-fill me-2"></i> <span>Validasi Nilai</span>
+    </a>
     <a class="nav-link" id="l-soal" onclick="showV('soal'); closeSidebarOnMobile();">
-      <i class="bi bi-pencil-square me-2"></i> Kelola Soal
+      <i class="bi bi-pencil-square me-2"></i> <span>Kelola Soal</span>
     </a>
     <a class="nav-link" id="l-laporan" onclick="showV('laporan'); closeSidebarOnMobile();">
-      <i class="bi bi-file-earmark-bar-graph-fill me-2"></i> Laporan Penilaian
+      <i class="bi bi-file-earmark-bar-graph-fill me-2"></i> <span>Laporan Penilaian</span>
     </a>
 
-    <div class="sidebar-menu-category">Sistem & Master</div>
+    <div class="sidebar-menu-category">Sistem & Pengaturan</div>
+    <a class="nav-link hidden" id="l-user" onclick="showV('user'); closeSidebarOnMobile();">
+      <i class="bi bi-people-fill me-2"></i> <span>Kelola User</span>
+    </a>
     <a class="nav-link" id="l-pengaturan" onclick="showV('pengaturan'); closeSidebarOnMobile();">
-      <i class="bi bi-sliders me-2"></i> Pengaturan
+      <i class="bi bi-sliders me-2"></i> <span>Pengaturan</span>
     </a>
     <a class="nav-link" id="l-reset" onclick="showV('reset'); closeSidebarOnMobile();">
-      <i class="bi bi-arrow-counterclockwise me-2"></i> Kelola Data (Reset)
-    </a>
-    <a class="nav-link hidden" id="l-user" onclick="showV('user'); closeSidebarOnMobile();">
-      <i class="bi bi-people-fill me-2"></i> Kelola User
+      <i class="bi bi-arrow-counterclockwise me-2"></i> <span>Kelola Data (Reset)</span>
     </a>
   </div>
 
-  <div class="pt-3 border-top mt-auto">
+  <div class="sidebar-footer">
     <a class="nav-link text-danger fw-semibold" onclick="handleLogout()" style="cursor: pointer;">
-      <i class="bi bi-box-arrow-left text-danger me-2"></i> Logout
+      <i class="bi bi-box-arrow-left text-danger me-2"></i> <span>Logout</span>
     </a>
   </div>
 </div>
