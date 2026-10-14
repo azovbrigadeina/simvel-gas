@@ -68,7 +68,7 @@
           <label class="form-label fw-semibold small text-muted">Username</label>
           <div class="input-group">
             <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-person-fill"></i></span>
-            <input type="text" id="login-username" class="form-control form-control-modern border-start-0" placeholder="Masukkan username" autocomplete="username">
+            <input type="text" id="login-username" class="form-control form-control-modern border-start-0" placeholder="Masukkan username" autocomplete="username" onkeydown="if(event.key==='Enter') document.getElementById('login-password').focus();">
           </div>
         </div>
         
@@ -76,7 +76,7 @@
           <label class="form-label fw-semibold small text-muted">Password</label>
           <div class="input-group">
             <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-lock-fill"></i></span>
-            <input type="password" id="login-password" class="form-control form-control-modern border-start-0 border-end-0" placeholder="Masukkan password" autocomplete="current-password">
+            <input type="password" id="login-password" class="form-control form-control-modern border-start-0 border-end-0" placeholder="Masukkan password" autocomplete="current-password" onkeydown="if(event.key==='Enter') handleLoginSubmit();">
             <span class="input-group-text bg-white border-start-0 text-muted" style="cursor: pointer;" onclick="togglePasswordVisibility()">
               <i class="bi bi-eye-fill" id="toggle-password"></i>
             </span>

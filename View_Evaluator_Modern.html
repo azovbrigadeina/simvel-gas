@@ -783,7 +783,7 @@
   }
 
   function filterOpdSudahTable(query) {
-    const q = (query || "").toLowerCase();
+    const q = (query || "").toLowerCase().trim();
     const rows = document.querySelectorAll('#table-opd-sudah tbody tr');
     rows.forEach(row => {
       const text = row.innerText.toLowerCase();
@@ -792,11 +792,18 @@
   }
 
   function filterSoalTable(query) {
-    const q = (query || "").toLowerCase();
+    const q = (query || "").toLowerCase().trim();
     const rows = document.querySelectorAll('#t-soal-body tr');
     rows.forEach(row => {
-      const text = row.innerText.toLowerCase();
-      row.style.display = text.includes(q) ? '' : 'none';
+      if (!q) {
+        row.style.display = '';
+        return;
+      }
+      let combined = row.innerText.toLowerCase();
+      row.querySelectorAll('input, textarea').forEach(inp => {
+        combined += ' ' + (inp.value || '').toLowerCase();
+      });
+      row.style.display = combined.includes(q) ? '' : 'none';
     });
   }
 </script>

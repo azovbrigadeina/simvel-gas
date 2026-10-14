@@ -15,6 +15,28 @@
     }
   };
 
+  // Hook showLoginForm untuk otomatis fokus ke username
+  const _origShowLoginForm = window.showLoginForm;
+  window.showLoginForm = function(role) {
+    if (_origShowLoginForm) _origShowLoginForm(role);
+    setTimeout(() => {
+      const uInp = document.getElementById('login-username');
+      if (uInp) uInp.focus();
+    }, 150);
+  };
+
+  // Hook handleLogout untuk reset mobile topbar & sidebar
+  const _origHandleLogout = window.handleLogout;
+  window.handleLogout = function() {
+    if (_origHandleLogout) _origHandleLogout();
+    const mobBar = document.getElementById('topbar-mobile');
+    if (mobBar) mobBar.classList.add('hidden');
+    const sb = document.getElementById('sidebar');
+    if (sb) sb.classList.remove('show');
+    const bd = document.getElementById('sidebar-backdrop');
+    if (bd) bd.classList.remove('show');
+  };
+
   // 1. Modern Dashboard Statistics Renderer
   window.loadStats = function() {
     google.script.run.withSuccessHandler(s => { 
@@ -405,8 +427,8 @@
         let isChecked = (s.pilihan_teks === lab);
         
         choiceHtml += `
-          <div class="choice-card-modern ${isChecked ? 'selected' : ''}" 
-            onclick="document.getElementById('${inputId}').click()">
+          <div class="choice-card-modern ${isChecked ? 'selected' : ''} ${dis ? 'disabled' : ''}" 
+            ${dis ? '' : `onclick="document.getElementById('${inputId}').click()"`}>
             <div class="d-flex align-items-center gap-2">
               <input class="form-check-input mt-0" type="radio" name="radio_${q[0]}" 
                 id="${inputId}" value="${bbt}" data-teks="${lab}" 
