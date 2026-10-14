@@ -1,63 +1,67 @@
-<div id="p-land" style="min-height: 100vh; background: radial-gradient(circle at 50% 20%, #0057B7 0%, #003B7D 60%, #00224B 100%); display: flex; align-items: center; justify-content: center; color: white; padding: 2rem 1rem;">
-  <div class="container fade-in text-center" style="max-width: 680px;">
+<div id="p-land" style="min-height: 100vh; background: radial-gradient(circle at 5% 15%, rgba(0, 87, 183, 0.08) 0%, transparent 45%), radial-gradient(circle at 95% 10%, rgba(255, 213, 0, 0.16) 0%, transparent 45%), #FFFFFF; display: flex; align-items: center; justify-content: center; color: var(--text-primary); padding: 2.5rem 1rem;">
+  <div class="container fade-in text-center" style="max-width: 720px;">
     <!-- Role Selection View -->
     <div id="role-selection">
+      <!-- Modern Minimalist Emblem & Title -->
       <div class="mb-3">
-        <img src="https://i.ibb.co.com/7dW9YHGM/logo-Simvel.png" alt="Logo SimVel" style="max-width: 280px; width: 85%; filter: drop-shadow(0 10px 25px rgba(0,0,0,0.25));" class="mb-3">
-      </div>
-      
-      <!-- Regulatory Pill Badge -->
-      <div class="mb-4">
-        <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill bg-white shadow-sm mb-2" style="color: #003B7D; border: 1px solid rgba(255,255,255,0.2);">
-          <i class="bi bi-journal-check fs-6 text-primary"></i>
-          <span class="fw-bold" style="font-size: 0.8rem;">PP No. 18 Tahun 2016 tentang Perangkat Daerah</span>
+        <div class="d-inline-flex align-items-center justify-content-center p-3 rounded-circle shadow-sm mb-3" style="width: 76px; height: 76px; background: white; border: 1px solid #E2E8F0;">
+          <img src="https://i.ibb.co.com/7dW9YHGM/logo-Simvel.png" alt="Logo SimVel" style="max-width: 48px; height: auto;">
         </div>
-        <h6 class="fw-medium text-white-50 mb-0">Bagian Organisasi Sekretariat Daerah Kabupaten Muaro Jambi</h6>
+        <h2 class="fw-bold mb-1 text-dark" style="letter-spacing: -0.03em;">SimVel</h2>
+        <p class="text-muted fw-medium small mb-2">Sistem Informasi Variabel Umum Daerah - Setda Kab. Muaro Jambi</p>
+        
+        <!-- Clean Regulation Pill -->
+        <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill bg-light border text-muted small shadow-xs">
+          <i class="bi bi-file-earmark-check text-primary"></i>
+          <span>PP No. 18 Tahun 2016</span>
+        </div>
       </div>
 
-      <!-- Action Role Cards -->
-      <p class="text-white-50 small mb-3">Pilih peran akun Anda untuk melanjutkan:</p>
-      <div class="row justify-content-center g-3 mb-4">
+      <!-- Action Role Cards (Ukrainian Blue & Gold Harmonious Palette) -->
+      <div class="row justify-content-center g-3 my-4">
+        <!-- Portal Responden (Azure Blue) -->
         <div class="col-sm-6" onclick="showLoginForm('Responden')">
-          <div class="card-modern p-4 text-center h-100" style="cursor: pointer; background: rgba(255, 255, 255, 0.95); transition: all 0.25s ease;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 15px 30px rgba(0,0,0,0.2)'" onmouseout="this.style.transform='none'; this.style.boxShadow='var(--shadow-sm)'">
-            <div class="kpi-icon-badge mx-auto mb-3" style="width: 52px; height: 52px; background: var(--p-light); color: var(--p); font-size: 1.5rem;">
-              <i class="bi bi-pencil-square"></i>
+          <div class="card-modern p-4 text-start h-100" style="cursor: pointer; background: white; border: 1.5px solid #E2E8F0; border-radius: 20px; transition: all 0.25s ease;" onmouseover="this.style.transform='translateY(-4px)'; this.style.borderColor='#0057B7'; this.style.boxShadow='0 12px 25px rgba(0, 87, 183, 0.12)'" onmouseout="this.style.transform='none'; this.style.borderColor='#E2E8F0'; this.style.boxShadow='var(--shadow-sm)'">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <div class="d-inline-flex align-items-center justify-content-center rounded-3" style="width: 42px; height: 42px; background: #0057B7; color: white; font-size: 1.25rem;">
+                <i class="bi bi-person-fill"></i>
+              </div>
+              <span class="fw-bold small" style="color: #0057B7; letter-spacing: 0.05em;">RESPONDEN</span>
             </div>
-            <h5 class="fw-bold text-dark mb-1">RESPONDEN</h5>
-            <p class="text-muted small mb-0">Pengisian Kuesioner & Bukti Dukung OPD</p>
+            <h5 class="fw-bold text-dark mb-1">Portal Responden</h5>
+            <p class="text-muted small mb-4" style="line-height: 1.5;">Pengisian kuesioner & bukti dukung OPD</p>
+            <button class="btn w-100 py-2 fw-bold text-white shadow-xs" style="background: #0057B7; border-radius: 12px; font-size: 0.9rem;">
+              Masuk Responden <i class="bi bi-arrow-right ms-1"></i>
+            </button>
           </div>
         </div>
 
+        <!-- Portal Evaluator (Golden Yellow) -->
         <div class="col-sm-6" onclick="showLoginForm('Evaluator')">
-          <div class="card-modern p-4 text-center h-100" style="cursor: pointer; background: rgba(255, 255, 255, 0.95); transition: all 0.25s ease;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 15px 30px rgba(0,0,0,0.2)'" onmouseout="this.style.transform='none'; this.style.boxShadow='var(--shadow-sm)'">
-            <div class="kpi-icon-badge mx-auto mb-3" style="width: 52px; height: 52px; background: var(--warning-light); color: #D97706; font-size: 1.5rem;">
-              <i class="bi bi-shield-check"></i>
+          <div class="card-modern p-4 text-start h-100" style="cursor: pointer; background: white; border: 1.5px solid #E2E8F0; border-radius: 20px; transition: all 0.25s ease;" onmouseover="this.style.transform='translateY(-4px)'; this.style.borderColor='#FFD500'; this.style.boxShadow='0 12px 25px rgba(255, 213, 0, 0.25)'" onmouseout="this.style.transform='none'; this.style.borderColor='#E2E8F0'; this.style.boxShadow='var(--shadow-sm)'">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <div class="d-inline-flex align-items-center justify-content-center rounded-3" style="width: 42px; height: 42px; background: #FFD500; color: #1E293B; font-size: 1.25rem;">
+                <i class="bi bi-shield-check"></i>
+              </div>
+              <span class="fw-bold small" style="color: #B45309; letter-spacing: 0.05em;">EVALUATOR</span>
             </div>
-            <h5 class="fw-bold text-dark mb-1">EVALUATOR</h5>
-            <p class="text-muted small mb-0">Verifikasi, Validasi Nilai & Laporan Penilaian</p>
+            <h5 class="fw-bold text-dark mb-1">Portal Evaluator</h5>
+            <p class="text-muted small mb-4" style="line-height: 1.5;">Verifikasi nilai & laporan evaluasi daerah</p>
+            <button class="btn w-100 py-2 fw-bold shadow-xs" style="background: #FFD500; color: #1E293B; border-radius: 12px; font-size: 0.9rem;">
+              Masuk Evaluator <i class="bi bi-arrow-right ms-1"></i>
+            </button>
           </div>
         </div>
-      </div>
-
-      <!-- Trust Indicator Pills -->
-      <div class="d-flex flex-wrap justify-content-center gap-2 mb-4">
-        <span class="badge rounded-pill px-3 py-2" style="background: rgba(255,255,255,0.12); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.2); font-weight: 500;">
-          <i class="bi bi-check-circle-fill text-success me-1"></i> 34 OPD Terdaftar
-        </span>
-        <span class="badge rounded-pill px-3 py-2" style="background: rgba(255,255,255,0.12); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.2); font-weight: 500;">
-          <i class="bi bi-arrow-repeat text-info me-1"></i> Sinkronisasi Realtime
-        </span>
-        <span class="badge rounded-pill px-3 py-2" style="background: rgba(255,255,255,0.12); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.2); font-weight: 500;">
-          <i class="bi bi-shield-lock-fill text-warning me-1"></i> Sistem Terenkripsi
-        </span>
       </div>
     </div>
 
     <!-- Login Form View -->
     <div id="login-form-container" class="hidden">
-      <div class="login-card-modern fade-in text-start">
+      <div class="card-modern p-4 p-md-5 text-start shadow-lg mx-auto" style="max-width: 420px; border-radius: 24px; border: 1px solid #E2E8F0;">
         <div class="text-center mb-4">
-          <img src="https://i.ibb.co.com/7dW9YHGM/logo-Simvel.png" alt="Logo SimVel" style="max-width: 150px;" class="mb-2">
+          <div class="d-inline-flex align-items-center justify-content-center p-2 rounded-circle shadow-xs mb-2" style="width: 56px; height: 56px; background: #F8FAFC; border: 1px solid #E2E8F0;">
+            <img src="https://i.ibb.co.com/7dW9YHGM/logo-Simvel.png" alt="Logo SimVel" style="max-width: 36px;">
+          </div>
           <h5 class="text-dark fw-bold mb-0" id="login-title">LOGIN USER</h5>
           <p class="text-muted small mb-0" id="login-subtitle">Silakan masukkan akun Anda</p>
         </div>
@@ -81,8 +85,8 @@
           </div>
         </div>
         
-        <button class="btn btn-modern btn-modern-primary w-100 py-2 fs-6 mb-3" id="btn-submit-login" onclick="handleLoginSubmit()">
-          <span>Masuk Sistem</span> <i class="bi bi-arrow-right"></i>
+        <button class="btn w-100 py-2 fs-6 fw-bold text-white mb-3 shadow-xs" id="btn-submit-login" style="background: #0057B7; border-radius: 12px;" onclick="handleLoginSubmit()">
+          <span>Masuk Sistem</span> <i class="bi bi-arrow-right ms-1"></i>
         </button>
         
         <div class="text-center">
@@ -93,8 +97,8 @@
       </div>
     </div>
 
-    <!-- Footer Landing -->
-    <footer class="mt-4 pt-2 small text-white-50">
+    <!-- Minimalist Footer -->
+    <footer class="mt-5 pt-3 small text-muted">
       Made with <span style="color: #ef4444;">❤️</span> by <strong>Bagian Organisasi Setda Kab. Muaro Jambi</strong>
     </footer>
   </div>
