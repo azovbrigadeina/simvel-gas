@@ -157,6 +157,7 @@
             pillButtonsHtml += `
               <button type="button" class="score-pill-btn ${isSelected ? 'active' : ''}" 
                 id="pill-${i}-${j}-${k}"
+                data-skor="${bbt}"
                 onclick="pilihSkorPill(${i}, ${j}, '${bbt}', this)"
                 title="Pilih Skor ${lab} (${bbt})">
                 ${lab} <span class="small opacity-75">(${bbt})</span>
@@ -198,7 +199,7 @@
               </div>
               <div class="d-flex align-items-center flex-wrap gap-2">
                 ${linkButtonsHtml}
-                <button class="btn btn-sm btn-modern-outline text-success border-success" onclick="samakanSkor(${i}, ${j}, '${ans.skala_responden}')" title="Samakan skor dengan responden">
+                <button class="btn btn-sm btn-modern-outline text-success border-success" id="btn-samakan-${i}-${j}" onclick="samakanSkor(${i}, ${j}, '${ans.skala_responden}')" title="Samakan skor dengan responden">
                   <i class="bi bi-arrow-down-circle"></i> Samakan Skor
                 </button>
                 <button class="btn btn-sm btn-modern-outline" onclick="doRefreshSnapshotSingleOPD('${safeOpd}')" title="Refresh Snapshot Drive OPD ini">
@@ -278,6 +279,76 @@
       group.querySelectorAll('.score-pill-btn').forEach(btn => btn.classList.remove('active'));
     }
     if (btnEl) btnEl.classList.add('active');
+  };
+
+  // Helper untuk samakan skor evaluator dengan responden
+  window.samakanSkor = function(i, j, skor) {
+    if (!vData || !vData[i] || !vData[i].jawaban_opd || !vData[i].jawaban_opd[j]) return;
+    
+    const ans = vData[i].jawaban_opd[j];
+    const rawSkor = (skor !== undefined && skor !== null && skor !== "") ? skor : ans.skala_responden;
+    const skorStr = (rawSkor !== undefined && rawSkor !== null) ? rawSkor.toString().trim() : "";
+    
+    if (skorStr === "" || skorStr === "-" || isNaN(Number(skorStr))) {
+      Swal.fire({
+        icon: 'info',
+        title: 'Skor Belum Ada',
+        text: 'Responden belum mengisi skor pada butir evaluasi ini.',
+        timer: 1800,
+        showConfirmButton: false
+      });
+      return;
+    }
+
+    ans.skala_evaluator = skorStr;
+
+    // 1. Update <select> fallback
+    const sel = document.getElementById(`sel-eval-${i}-${j}`);
+    if (sel) {
+      sel.value = skorStr;
+      sel.classList.add('bg-success', 'text-white');
+      setTimeout(() => sel.classList.remove('bg-success', 'text-white'), 400);
+    }
+
+    // 2. Update pill buttons visual di Modern UI
+    const group = document.getElementById(`score-pill-group-${i}-${j}`);
+    let targetBtn = null;
+    if (group) {
+      const btns = group.querySelectorAll('.score-pill-btn');
+      btns.forEach(btn => {
+        btn.classList.remove('active');
+        const bbt = btn.getAttribute('data-skor');
+        if (bbt === skorStr || (parseFloat(bbt) === parseFloat(skorStr) && !isNaN(parseFloat(bbt)))) {
+          btn.classList.add('active');
+          targetBtn = btn;
+        }
+      });
+    }
+
+    // 3. Efek animasi pop/bounce pada pill yang berhasil diaktifkan
+    if (targetBtn) {
+      targetBtn.style.transform = 'scale(1.15)';
+      targetBtn.style.boxShadow = '0 0 12px rgba(16, 185, 129, 0.4)';
+      targetBtn.style.transition = 'all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+      setTimeout(() => {
+        targetBtn.style.transform = 'scale(1)';
+        targetBtn.style.boxShadow = '';
+      }, 300);
+    }
+
+    // 4. Efek visual pada tombol "Samakan Skor" itu sendiri
+    const btnSamakan = document.getElementById(`btn-samakan-${i}-${j}`);
+    if (btnSamakan) {
+      const origHtml = btnSamakan.innerHTML;
+      btnSamakan.innerHTML = '<i class="bi bi-check-circle-fill"></i> Disamakan!';
+      btnSamakan.classList.remove('btn-modern-outline', 'text-success', 'border-success');
+      btnSamakan.classList.add('btn-success', 'text-white');
+      setTimeout(() => {
+        btnSamakan.innerHTML = origHtml;
+        btnSamakan.classList.remove('btn-success', 'text-white');
+        btnSamakan.classList.add('btn-modern-outline', 'text-success', 'border-success');
+      }, 1200);
+    }
   };
 
   // 4. Modern Respondent Questionnaire Renderer
