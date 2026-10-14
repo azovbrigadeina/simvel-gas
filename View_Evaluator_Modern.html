@@ -1,15 +1,14 @@
 <!-- Sidebar Backdrop for Mobile -->
-<div id="sidebar-backdrop" class="sidebar-backdrop" onclick="toggleSidebarModern(false)"></div>
+<div id="sidebar-backdrop" class="sidebar-backdrop hidden" onclick="toggleSidebarModern(false)"></div>
 
 <!-- Topbar for Mobile / Tablet -->
-<div class="topbar-mobile">
+<div id="topbar-mobile" class="topbar-mobile hidden">
   <div class="d-flex align-items-center gap-2">
     <button class="btn btn-sm btn-modern-outline" onclick="toggleSidebarModern(true)" title="Menu Navigasi">
       <i class="bi bi-list fs-5"></i>
     </button>
     <div class="d-flex align-items-center gap-2">
       <img src="https://i.ibb.co.com/7dW9YHGM/logo-Simvel.png" alt="Logo SimVel" style="height: 24px;">
-      <span class="fw-bold small text-primary">SimVel</span>
     </div>
   </div>
   <span class="badge badge-soft-primary" id="mobile-role-badge">EVALUATOR</span>

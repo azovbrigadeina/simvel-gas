@@ -1,12 +1,19 @@
-<!-- Load Base Business Logic from JS.html -->
-<?!= include('JS'); ?>
-
 <script>
   /**
    * SimVel Modern UI Controller Overrides
    * Menyesuaikan komponen tampilan agar matching 100% dengan Mockup Modern
    * tanpa mengubah satu pun alur data atau backend Firebase.
    */
+
+  // Hook applySession untuk menampilkan mobile topbar hanya saat login evaluator
+  const _origApplySession = window.applySession;
+  window.applySession = function(res) {
+    if (_origApplySession) _origApplySession(res);
+    if (res && res.role !== "Responden") {
+      const mobBar = document.getElementById('topbar-mobile');
+      if (mobBar) mobBar.classList.remove('hidden');
+    }
+  };
 
   // 1. Modern Dashboard Statistics Renderer
   window.loadStats = function() {
