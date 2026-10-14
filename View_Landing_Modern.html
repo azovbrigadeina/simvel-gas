@@ -1,53 +1,52 @@
-<div id="p-land" style="min-height: 100vh; background: radial-gradient(circle at 82% 28%, rgba(255, 215, 0, 0.7) 0%, rgba(255, 215, 0, 0.25) 32%, transparent 60%), radial-gradient(circle at 18% 72%, rgba(255, 215, 0, 0.45) 0%, rgba(255, 215, 0, 0.12) 30%, transparent 58%), linear-gradient(135deg, #0052ad 0%, #0057B7 35%, #003B7D 75%, #00224B 100%); display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; position: relative;">
+<div id="p-land" style="min-height: 100vh; background: radial-gradient(circle at 82% 28%, rgba(255, 215, 0, 0.7) 0%, rgba(255, 215, 0, 0.25) 32%, transparent 60%), radial-gradient(circle at 18% 72%, rgba(255, 215, 0, 0.45) 0%, rgba(255, 215, 0, 0.12) 30%, transparent 58%), linear-gradient(135deg, #0052ad 0%, #0057B7 35%, #003B7D 75%, #00224B 100%); display: flex; align-items: center; justify-content: center; padding: 2.5rem 1rem; position: relative;">
   <div class="container fade-in text-center" style="max-width: 760px; z-index: 2;">
     <!-- Role Selection View -->
     <div id="role-selection">
-      <!-- Top Branding Section -->
-      <div class="mb-4 text-white">
-        <div class="d-inline-flex align-items-center justify-content-center p-2 rounded-circle shadow-lg mb-3" style="width: 72px; height: 72px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 2px solid rgba(255, 255, 255, 0.8);">
-          <img src="https://i.ibb.co.com/7dW9YHGM/logo-Simvel.png" alt="Logo SimVel" style="max-width: 44px; height: auto;">
-        </div>
-        <h1 class="fw-bold mb-1 text-white" style="letter-spacing: -0.03em; text-shadow: 0 4px 15px rgba(0,0,0,0.25);">SimVel</h1>
-        <p class="text-white-50 fw-medium small mb-3">Sistem Informasi Variabel Umum Daerah - Setda Kab. Muaro Jambi</p>
+      <!-- Big Official Logo (Contains Full SimVel Branding & Subtitle) -->
+      <div class="mb-3 text-center">
+        <img src="https://i.ibb.co.com/7dW9YHGM/logo-Simvel.png" alt="Logo SimVel" style="max-width: 380px; width: 90%; margin-bottom: 20px; filter: drop-shadow(0 12px 25px rgba(0,0,0,0.25));">
         
-        <!-- Clean Capsule Badge -->
-        <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill small shadow-sm fw-semibold" style="background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.35); color: #FFFFFF; font-size: 0.8rem;">
-          <i class="bi bi-file-earmark-check text-warning"></i>
-          <span>PP No. 18 Tahun 2016</span>
+        <!-- Clean Regulation Badge -->
+        <div class="mb-4">
+          <div class="d-inline-flex align-items-center gap-2 px-4 py-2 rounded-pill bg-white shadow-sm mb-2" style="color: #003B7D; font-weight: 700; font-size: 0.85rem;">
+            <i class="bi bi-journal-text text-primary fs-5"></i>
+            <span>PP No. 18 Tahun 2016 tentang Perangkat Daerah</span>
+          </div>
+          <div class="text-white-50 small fw-semibold">Bagian Organisasi Sekretariat Daerah Kab. Muaro Jambi</div>
         </div>
       </div>
 
       <!-- Action Role Cards (Frosted Glass with Smooth Glow) -->
       <div class="row justify-content-center g-3 my-3">
         <!-- Portal Responden -->
-        <div class="col-sm-6" onclick="showLoginForm('Responden')">
-          <div class="card-modern p-4 text-start h-100 shadow-lg" style="cursor: pointer; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(16px); border: 1.5px solid rgba(255, 255, 255, 0.9); border-radius: 24px; transition: all 0.25s ease;" onmouseover="this.style.transform='translateY(-6px)'; this.style.boxShadow='0 20px 40px rgba(0, 87, 183, 0.25)'" onmouseout="this.style.transform='none'; this.style.boxShadow='var(--shadow-lg)'">
+        <div class="col-sm-6">
+          <div class="card-modern p-4 text-start h-100 shadow-lg" style="cursor: pointer; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(16px); border: 1.5px solid rgba(255, 255, 255, 0.9); border-radius: 24px; transition: all 0.25s ease;" onclick="showLoginForm('Responden')" onmouseover="this.style.transform='translateY(-6px)'; this.style.boxShadow='0 20px 40px rgba(0, 87, 183, 0.25)'" onmouseout="this.style.transform='none'; this.style.boxShadow='var(--shadow-lg)'">
             <div class="d-flex align-items-center gap-2 mb-3">
               <div class="d-inline-flex align-items-center justify-content-center rounded-3 shadow-xs" style="width: 44px; height: 44px; background: #0057B7; color: white; font-size: 1.25rem;">
-                <i class="bi bi-person-fill"></i>
+                <i class="bi bi-pencil-square"></i>
               </div>
-              <span class="fw-bold small" style="color: #0057B7; letter-spacing: 0.05em;">PORTAL RESPONDEN</span>
+              <span class="fw-bold small" style="color: #0057B7; letter-spacing: 0.05em;">RESPONDEN</span>
             </div>
             <h5 class="fw-bold text-dark mb-1">Portal Responden</h5>
             <p class="text-muted small mb-4" style="line-height: 1.5;">Pengisian kuesioner & bukti dukung OPD</p>
-            <button class="btn w-100 py-2 fw-bold text-white shadow-xs" style="background: #0057B7; border-radius: 14px; font-size: 0.925rem;">
+            <button type="button" class="btn w-100 py-2 fw-bold text-white shadow-xs" style="background: #0057B7; border-radius: 14px; font-size: 0.925rem;" onclick="showLoginForm('Responden'); event.stopPropagation();">
               Masuk Responden <i class="bi bi-arrow-right ms-1"></i>
             </button>
           </div>
         </div>
 
         <!-- Portal Evaluator -->
-        <div class="col-sm-6" onclick="showLoginForm('Evaluator')">
-          <div class="card-modern p-4 text-start h-100 shadow-lg" style="cursor: pointer; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(16px); border: 1.5px solid rgba(255, 255, 255, 0.9); border-radius: 24px; transition: all 0.25s ease;" onmouseover="this.style.transform='translateY(-6px)'; this.style.boxShadow='0 20px 40px rgba(255, 215, 0, 0.35)'" onmouseout="this.style.transform='none'; this.style.boxShadow='var(--shadow-lg)'">
+        <div class="col-sm-6">
+          <div class="card-modern p-4 text-start h-100 shadow-lg" style="cursor: pointer; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(16px); border: 1.5px solid rgba(255, 255, 255, 0.9); border-radius: 24px; transition: all 0.25s ease;" onclick="showLoginForm('Evaluator')" onmouseover="this.style.transform='translateY(-6px)'; this.style.boxShadow='0 20px 40px rgba(255, 215, 0, 0.35)'" onmouseout="this.style.transform='none'; this.style.boxShadow='var(--shadow-lg)'">
             <div class="d-flex align-items-center gap-2 mb-3">
               <div class="d-inline-flex align-items-center justify-content-center rounded-3 shadow-xs" style="width: 44px; height: 44px; background: #FFD700; color: #1E293B; font-size: 1.25rem;">
                 <i class="bi bi-shield-check"></i>
               </div>
-              <span class="fw-bold small" style="color: #92400E; letter-spacing: 0.05em;">PORTAL EVALUATOR</span>
+              <span class="fw-bold small" style="color: #92400E; letter-spacing: 0.05em;">EVALUATOR</span>
             </div>
             <h5 class="fw-bold text-dark mb-1">Portal Evaluator</h5>
             <p class="text-muted small mb-4" style="line-height: 1.5;">Verifikasi nilai & laporan evaluasi daerah</p>
-            <button class="btn w-100 py-2 fw-bold shadow-xs text-dark" style="background: #FFD700; border-radius: 14px; font-size: 0.925rem;">
+            <button type="button" class="btn w-100 py-2 fw-bold shadow-xs text-dark" style="background: #FFD700; border-radius: 14px; font-size: 0.925rem;" onclick="showLoginForm('Evaluator'); event.stopPropagation();">
               Masuk Evaluator <i class="bi bi-arrow-right ms-1"></i>
             </button>
           </div>
@@ -57,11 +56,9 @@
 
     <!-- Login Form View -->
     <div id="login-form-container" class="hidden">
-      <div class="card-modern p-4 p-md-5 text-start shadow-lg mx-auto" style="max-width: 440px; border-radius: 28px; background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(20px); border: 2px solid rgba(255, 255, 255, 0.8);">
+      <div class="card-modern p-4 p-md-5 text-start shadow-lg mx-auto" style="max-width: 440px; border-radius: 28px; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(20px); border: 2px solid rgba(255, 255, 255, 0.8);">
         <div class="text-center mb-4">
-          <div class="d-inline-flex align-items-center justify-content-center p-2 rounded-circle shadow-xs mb-2" style="width: 60px; height: 60px; background: #F8FAFC; border: 1px solid #E2E8F0;">
-            <img src="https://i.ibb.co.com/7dW9YHGM/logo-Simvel.png" alt="Logo SimVel" style="max-width: 38px;">
-          </div>
+          <img src="https://i.ibb.co.com/7dW9YHGM/logo-Simvel.png" alt="Logo SimVel" style="max-width: 200px; margin-bottom: 16px;">
           <h5 class="text-dark fw-bold mb-0" id="login-title">LOGIN USER</h5>
           <p class="text-muted small mb-0" id="login-subtitle">Silakan masukkan akun Anda</p>
         </div>
@@ -85,12 +82,12 @@
           </div>
         </div>
         
-        <button class="btn w-100 py-2 fs-6 fw-bold text-white mb-3 shadow-xs" id="btn-submit-login" style="background: #0057B7; border-radius: 14px;" onclick="handleLoginSubmit()">
+        <button type="button" class="btn w-100 py-2 fs-6 fw-bold text-white mb-3 shadow-xs" id="btn-submit-login" style="background: #0057B7; border-radius: 14px;" onclick="handleLoginSubmit()">
           <span>Masuk Sistem</span> <i class="bi bi-arrow-right ms-1"></i>
         </button>
         
         <div class="text-center">
-          <a href="#" class="text-muted small text-decoration-none fw-semibold" onclick="hideLoginForm()">
+          <a href="#" class="text-muted small text-decoration-none fw-semibold" onclick="hideLoginForm(); return false;">
             <i class="bi bi-arrow-left me-1"></i> Kembali ke Pilihan Peran
           </a>
         </div>
