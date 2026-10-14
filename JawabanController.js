@@ -74,6 +74,12 @@ function _computeSubKatStats(ds, dj, dv) {
       return;
     }
 
+    // Urusan Umum (A. FAKTOR UMUM atau sub "Umum") disembunyikan dari Validasi Nilai
+    // karena merupakan variabel proksi dan nilai Faktor Umum sudah ditentukan global di Pengaturan
+    if (sub.toLowerCase() === "umum" || katUtama.toUpperCase().includes("FAKTOR UMUM")) {
+      return;
+    }
+
     qIdToSub[qId] = sub;
     if (!stats[sub]) {
       stats[sub] = { nama: sub, total_jawaban: 0, total_divalidasi: 0 };
@@ -174,8 +180,9 @@ function _computeJawabanBySubKategori(subKategori, ds, dj, dv) {
 function _computeLaporanNilai(ds, dv, faktorUmumGlobal, excludedBonus) {
   var mapSubKategori = {};
   ds.forEach(function(r) {
+    var katUtama = r[1] ? r[1].toString().trim() : "";
     var sub = r[2] ? r[2].toString().trim() : "Umum";
-    if (!sub.toUpperCase().startsWith("A. FAKTOR") && !sub.toUpperCase().startsWith("B. FAKTOR")) {
+    if (!sub.toUpperCase().startsWith("A. FAKTOR") && !sub.toUpperCase().startsWith("B. FAKTOR") && sub.toLowerCase() !== "umum" && !katUtama.toUpperCase().includes("FAKTOR UMUM")) {
       mapSubKategori[r[0].toString()] = sub;
     }
   });

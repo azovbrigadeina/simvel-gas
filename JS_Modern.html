@@ -101,6 +101,7 @@
       
       let h = '';
       res.forEach(s => {
+        if (!s || !s.nama || s.nama.toLowerCase() === 'umum' || s.nama.toUpperCase().includes('FAKTOR UMUM')) return;
         let statusBadge = '';
         let btnClass = 'btn-modern-primary';
         if (s.total_jawaban === 0) {
