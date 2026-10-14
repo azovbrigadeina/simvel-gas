@@ -1,0 +1,56 @@
+<div id="p-resp" class="hidden fade-in">
+  <!-- Modern Clean Navbar Responden -->
+  <nav class="navbar navbar-expand-lg bg-white border-bottom px-3 px-md-4 py-2 fixed-top shadow-xs">
+    <div class="container-fluid d-flex justify-content-between align-items-center">
+      <!-- Left: Logo & App Title -->
+      <div class="d-flex align-items-center gap-2">
+        <img src="https://i.ibb.co.com/7dW9YHGM/logo-Simvel.png" alt="Logo SimVel" style="max-height: 32px;">
+        <div>
+          <span class="fw-bold text-primary mb-0 fs-6">SimVel</span>
+          <span class="d-none d-sm-inline text-muted small ms-1">• Portal Responden</span>
+        </div>
+      </div>
+
+      <!-- Center / Right: OPD Identity & Countdown -->
+      <div class="d-flex align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2 px-3 py-1 rounded-pill" style="background: var(--p-light); border: 1px solid rgba(0, 87, 183, 0.2);">
+          <i class="bi bi-building text-primary"></i>
+          <span id="opd-name" class="fw-bold text-primary small text-truncate" style="max-width: 250px;"></span>
+        </div>
+
+        <button class="btn btn-sm btn-modern btn-modern-outline text-danger border-danger" onclick="handleLogout()" title="Keluar dari sesi Responden">
+          <i class="bi bi-box-arrow-left"></i> <span class="d-none d-sm-inline">Keluar</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Deadline Banner & Stepper Header Area -->
+  <div class="container mt-5 pt-4" style="max-width: 900px;">
+    <div id="deadline-banner" class="alert card-modern d-none p-3 mb-4 d-flex justify-content-between align-items-center border-warning" style="background: var(--warning-light);" role="alert">
+      <div class="d-flex align-items-center gap-3">
+        <div class="kpi-icon-badge" style="width: 38px; height: 38px; background: white; color: #D97706; font-size: 1.1rem;">
+          <i class="bi bi-clock-history"></i>
+        </div>
+        <div>
+          <h6 class="alert-heading fw-bold mb-0 text-dark">Batas Waktu Pengisian Kuesioner</h6>
+          <div id="deadline-text" class="small text-muted mb-0">Sedang memuat data waktu...</div>
+        </div>
+      </div>
+      <div class="text-end">
+        <span class="badge badge-soft-warning fs-6 px-3 py-2" id="deadline-countdown">-</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Questionnaire Container -->
+  <div class="container pb-5 mt-2" style="max-width: 900px;" id="f-cont">
+    <!-- Form questions injected here dynamically -->
+  </div>
+
+  <!-- Modern Footer -->
+  <footer class="text-center py-4 mt-auto small text-muted border-top bg-white">
+    <div>Made with <span style="color: #ef4444;">❤️</span> by <strong>Bagian Organisasi Setda Kab. Muaro Jambi</strong></div>
+    <div style="font-size: 0.75rem;" class="mt-1">SimVel Modern v2.0 • Sistem Informasi Variabel Umum Daerah</div>
+  </footer>
+</div>

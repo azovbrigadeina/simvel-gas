@@ -1,0 +1,88 @@
+<div id="p-land" style="min-height: 100vh; background: radial-gradient(circle at 50% 20%, #0057B7 0%, #003B7D 60%, #00224B 100%); display: flex; align-items: center; justify-content: center; color: white; padding: 2rem 1rem;">
+  <div class="container fade-in text-center" style="max-width: 680px;">
+    <!-- Role Selection View -->
+    <div id="role-selection">
+      <div class="mb-3">
+        <img src="https://i.ibb.co.com/7dW9YHGM/logo-Simvel.png" alt="Logo SimVel" style="max-width: 280px; width: 85%; filter: drop-shadow(0 10px 25px rgba(0,0,0,0.25));" class="mb-3">
+      </div>
+      
+      <!-- Regulatory Pill Badge -->
+      <div class="mb-4">
+        <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill bg-white shadow-sm mb-2" style="color: #003B7D; border: 1px solid rgba(255,255,255,0.2);">
+          <i class="bi bi-journal-check fs-6 text-primary"></i>
+          <span class="fw-bold" style="font-size: 0.8rem;">PP No. 18 Tahun 2016 tentang Perangkat Daerah</span>
+        </div>
+        <h6 class="fw-medium text-white-50 mb-0">Bagian Organisasi Sekretariat Daerah Kabupaten Muaro Jambi</h6>
+      </div>
+
+      <!-- Action Role Cards -->
+      <p class="text-white-50 small mb-3">Pilih peran akun Anda untuk melanjutkan:</p>
+      <div class="row justify-content-center g-3 mb-4">
+        <div class="col-sm-6" onclick="showLoginForm('Responden')">
+          <div class="card-modern p-4 text-center h-100" style="cursor: pointer; background: rgba(255, 255, 255, 0.95); transition: all 0.25s ease;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 15px 30px rgba(0,0,0,0.2)'" onmouseout="this.style.transform='none'; this.style.boxShadow='var(--shadow-sm)'">
+            <div class="kpi-icon-badge mx-auto mb-3" style="width: 52px; height: 52px; background: var(--p-light); color: var(--p); font-size: 1.5rem;">
+              <i class="bi bi-pencil-square"></i>
+            </div>
+            <h5 class="fw-bold text-dark mb-1">RESPONDEN</h5>
+            <p class="text-muted small mb-0">Pengisian Kuesioner & Bukti Dukung OPD</p>
+          </div>
+        </div>
+
+        <div class="col-sm-6" onclick="showLoginForm('Evaluator')">
+          <div class="card-modern p-4 text-center h-100" style="cursor: pointer; background: rgba(255, 255, 255, 0.95); transition: all 0.25s ease;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 15px 30px rgba(0,0,0,0.2)'" onmouseout="this.style.transform='none'; this.style.boxShadow='var(--shadow-sm)'">
+            <div class="kpi-icon-badge mx-auto mb-3" style="width: 52px; height: 52px; background: var(--warning-light); color: #D97706; font-size: 1.5rem;">
+              <i class="bi bi-shield-check"></i>
+            </div>
+            <h5 class="fw-bold text-dark mb-1">EVALUATOR</h5>
+            <p class="text-muted small mb-0">Verifikasi, Validasi Nilai & Laporan Penilaian</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Login Form View -->
+    <div id="login-form-container" class="hidden">
+      <div class="login-card-modern fade-in text-start">
+        <div class="text-center mb-4">
+          <img src="https://i.ibb.co.com/7dW9YHGM/logo-Simvel.png" alt="Logo SimVel" style="max-width: 150px;" class="mb-2">
+          <h5 class="text-dark fw-bold mb-0" id="login-title">LOGIN USER</h5>
+          <p class="text-muted small mb-0" id="login-subtitle">Silakan masukkan akun Anda</p>
+        </div>
+        
+        <div class="mb-3">
+          <label class="form-label fw-semibold small text-muted">Username</label>
+          <div class="input-group">
+            <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-person-fill"></i></span>
+            <input type="text" id="login-username" class="form-control form-control-modern border-start-0" placeholder="Masukkan username" autocomplete="username">
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <label class="form-label fw-semibold small text-muted">Password</label>
+          <div class="input-group">
+            <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-lock-fill"></i></span>
+            <input type="password" id="login-password" class="form-control form-control-modern border-start-0 border-end-0" placeholder="Masukkan password" autocomplete="current-password">
+            <span class="input-group-text bg-white border-start-0 text-muted" style="cursor: pointer;" onclick="togglePasswordVisibility()">
+              <i class="bi bi-eye-fill" id="toggle-password"></i>
+            </span>
+          </div>
+        </div>
+        
+        <button class="btn btn-modern btn-modern-primary w-100 py-2 fs-6 mb-3" id="btn-submit-login" onclick="handleLoginSubmit()">
+          <span>Masuk Sistem</span> <i class="bi bi-arrow-right"></i>
+        </button>
+        
+        <div class="text-center">
+          <a href="#" class="text-muted small text-decoration-none" onclick="hideLoginForm()">
+            <i class="bi bi-arrow-left me-1"></i> Kembali ke Pilihan Peran
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer Landing -->
+    <footer class="mt-4 pt-2 small text-white-50">
+      Made with <span style="color: #ef4444;">❤️</span> by <strong>Bagian Organisasi Setda Kab. Muaro Jambi</strong>
+    </footer>
+  </div>
+</div>

@@ -14,9 +14,11 @@ function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
-function doGet() {
-  return HtmlService.createTemplateFromFile('Index').evaluate()
-      .setTitle('SimVel - Bagor Muaro Jambi')
+function doGet(e) {
+  const isModern = e && e.parameter && (e.parameter.ui === 'modern' || e.parameter.v === 'modern');
+  const templateName = isModern ? 'Index_Modern' : 'Index';
+  return HtmlService.createTemplateFromFile(templateName).evaluate()
+      .setTitle('SimVel - Bagor Muaro Jambi' + (isModern ? ' (Modern UI)' : ''))
       .addMetaTag('viewport', 'width=device-width, initial-scale=1')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }

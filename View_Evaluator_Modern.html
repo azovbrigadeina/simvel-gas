@@ -1,0 +1,802 @@
+<!-- Sidebar Backdrop for Mobile -->
+<div id="sidebar-backdrop" class="sidebar-backdrop" onclick="toggleSidebarModern(false)"></div>
+
+<!-- Topbar for Mobile / Tablet -->
+<div class="topbar-mobile">
+  <div class="d-flex align-items-center gap-2">
+    <button class="btn btn-sm btn-modern-outline" onclick="toggleSidebarModern(true)" title="Menu Navigasi">
+      <i class="bi bi-list fs-5"></i>
+    </button>
+    <div class="d-flex align-items-center gap-2">
+      <img src="https://i.ibb.co.com/7dW9YHGM/logo-Simvel.png" alt="Logo SimVel" style="height: 24px;">
+      <span class="fw-bold small text-primary">SimVel</span>
+    </div>
+  </div>
+  <span class="badge badge-soft-primary" id="mobile-role-badge">EVALUATOR</span>
+</div>
+
+<!-- Modern Sidebar -->
+<div id="sidebar" class="sidebar-modern hidden shadow-sm">
+  <div class="sidebar-header d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center gap-2">
+      <img src="https://i.ibb.co.com/7dW9YHGM/logo-Simvel.png" alt="Logo SimVel" style="max-height: 32px;">
+      <div>
+        <h6 class="fw-bold text-primary mb-0" style="letter-spacing: -0.02em;">SimVel</h6>
+        <span class="text-muted" style="font-size: 0.65rem; font-weight: 600;">Sistem Variabel Daerah</span>
+      </div>
+    </div>
+    <button class="btn btn-sm d-lg-none text-muted" onclick="toggleSidebarModern(false)">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </div>
+
+  <!-- User Profile Pill -->
+  <div class="sidebar-user-pill">
+    <div class="sidebar-user-avatar">
+      <i class="bi bi-person-fill"></i>
+    </div>
+    <div class="overflow-hidden">
+      <div class="fw-bold text-dark text-truncate" style="font-size: 0.8rem;" id="sidebar-title">EVALUATOR</div>
+      <div class="text-muted text-truncate" style="font-size: 0.7rem;">Setda Muaro Jambi</div>
+    </div>
+  </div>
+
+  <div class="nav flex-column flex-grow-1 overflow-y-auto">
+    <div class="sidebar-menu-category">Menu Utama</div>
+    <a class="nav-link active" id="l-dash" onclick="showV('dash'); closeSidebarOnMobile();">
+      <i class="bi bi-grid-1x2-fill me-2"></i> Dashboard
+    </a>
+    <a class="nav-link" id="l-val" onclick="showV('val'); closeSidebarOnMobile();">
+      <i class="bi bi-clipboard2-check-fill me-2"></i> Validasi Nilai
+    </a>
+
+    <div class="sidebar-menu-category">Data & Laporan</div>
+    <a class="nav-link" id="l-soal" onclick="showV('soal'); closeSidebarOnMobile();">
+      <i class="bi bi-pencil-square me-2"></i> Kelola Soal
+    </a>
+    <a class="nav-link" id="l-laporan" onclick="showV('laporan'); closeSidebarOnMobile();">
+      <i class="bi bi-file-earmark-bar-graph-fill me-2"></i> Laporan Penilaian
+    </a>
+
+    <div class="sidebar-menu-category">Sistem & Master</div>
+    <a class="nav-link" id="l-pengaturan" onclick="showV('pengaturan'); closeSidebarOnMobile();">
+      <i class="bi bi-sliders me-2"></i> Pengaturan
+    </a>
+    <a class="nav-link" id="l-reset" onclick="showV('reset'); closeSidebarOnMobile();">
+      <i class="bi bi-arrow-counterclockwise me-2"></i> Kelola Data (Reset)
+    </a>
+    <a class="nav-link hidden" id="l-user" onclick="showV('user'); closeSidebarOnMobile();">
+      <i class="bi bi-people-fill me-2"></i> Kelola User
+    </a>
+  </div>
+
+  <div class="pt-3 border-top mt-auto">
+    <a class="nav-link text-danger fw-semibold" onclick="handleLogout()" style="cursor: pointer;">
+      <i class="bi bi-box-arrow-left text-danger me-2"></i> Logout
+    </a>
+  </div>
+</div>
+
+<!-- Modern Content Area -->
+<div id="p-eval" class="content-modern hidden">
+
+  <!-- ==========================================
+       VIEW: DASHBOARD
+       ========================================== -->
+  <div id="v-dash" class="fade-in">
+    <!-- Header Page -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+      <div>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-1 small text-muted">
+            <li class="breadcrumb-item">SimVel</li>
+            <li class="breadcrumb-item active" aria-current="page">Dashboard Monitoring</li>
+          </ol>
+        </nav>
+        <h4 class="fw-bold mb-0 text-dark">Ringkasan Evaluasi & Penilaian</h4>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge badge-soft-success py-2 px-3">
+          <i class="bi bi-shield-check"></i> Firebase Realtime Aktif
+        </span>
+        <button class="btn btn-sm btn-modern-outline" onclick="loadStats()" title="Perbarui Statistik">
+          <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- Row 1: KPI Metrics -->
+    <div class="row g-3 mb-4">
+      <!-- Total Responden -->
+      <div class="col-md-4">
+        <div class="kpi-card h-100">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <span class="text-muted fw-semibold small">Total Responden (OPD)</span>
+              <h2 id="s-tot" class="fw-bold text-dark mt-2 mb-1">0</h2>
+              <span class="badge badge-soft-primary small mt-1">
+                <i class="bi bi-building"></i> Perangkat Daerah
+              </span>
+            </div>
+            <div class="kpi-icon-badge" style="background: var(--p-light); color: var(--p);">
+              <i class="bi bi-people-fill"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Urusan Sudah Nilai & Progress -->
+      <div class="col-md-4">
+        <div class="kpi-card h-100">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <span class="text-muted fw-semibold small">Urusan Sudah Dinilai</span>
+              <h2 id="s-urusan-sudah" class="fw-bold text-success mt-2 mb-1">0</h2>
+              <span class="badge badge-soft-success small mt-1">
+                <i class="bi bi-check-circle"></i> Terverifikasi
+              </span>
+            </div>
+            <div class="kpi-icon-badge" style="background: var(--success-light); color: #059669;">
+              <i class="bi bi-clipboard2-check-fill"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Distribusi Tipe PD (A, B, C, Lainnya) -->
+      <div class="col-md-4">
+        <div class="kpi-card h-100">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted fw-semibold small">Distribusi Tipe PD</span>
+            <span class="badge badge-soft-neutral small">PP No. 18/2016</span>
+          </div>
+          <div class="row g-2 text-center mt-1">
+            <div class="col-3">
+              <div class="p-2 rounded bg-light border">
+                <div class="small text-muted fw-bold" style="font-size: 0.7rem;">Tipe A</div>
+                <div class="fw-bold text-danger fs-5" id="s-ta">0</div>
+              </div>
+            </div>
+            <div class="col-3">
+              <div class="p-2 rounded bg-light border">
+                <div class="small text-muted fw-bold" style="font-size: 0.7rem;">Tipe B</div>
+                <div class="fw-bold text-primary fs-5" id="s-tb">0</div>
+              </div>
+            </div>
+            <div class="col-3">
+              <div class="p-2 rounded bg-light border">
+                <div class="small text-muted fw-bold" style="font-size: 0.7rem;">Tipe C</div>
+                <div class="fw-bold text-info fs-5" id="s-tc">0</div>
+              </div>
+            </div>
+            <div class="col-3">
+              <div class="p-2 rounded bg-light border">
+                <div class="small text-muted fw-bold" style="font-size: 0.7rem;">Lain</div>
+                <div class="fw-bold text-secondary fs-5" id="s-tl">0</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Tabel OPD & Panel Aksi Cepat -->
+    <div class="row g-4">
+      <div class="col-lg-7">
+        <div class="card-modern p-4">
+          <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+            <div>
+              <h6 class="fw-bold mb-0 text-dark">Daftar OPD Pengisi Kuesioner</h6>
+              <span class="text-muted small">OPD yang telah mengirimkan data kuesioner</span>
+            </div>
+            <div style="max-width: 220px;">
+              <input type="text" class="form-control form-control-sm form-control-modern" placeholder="Cari OPD..." onkeyup="filterOpdSudahTable(this.value)">
+            </div>
+          </div>
+          <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+            <table class="table table-modern table-hover align-middle mb-0" id="table-opd-sudah">
+              <thead>
+                <tr>
+                  <th style="width: 50px;">No</th>
+                  <th>Nama Perangkat Daerah (OPD)</th>
+                  <th style="width: 100px;" class="text-end">Status</th>
+                </tr>
+              </thead>
+              <tbody id="t-opd-sudah-body">
+                <!-- Data OPD injected here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-5">
+        <!-- Quick Action & Guide -->
+        <div class="card-modern p-4 mb-4">
+          <div class="d-flex align-items-center gap-2 mb-3">
+            <div class="kpi-icon-badge" style="width: 36px; height: 36px; background: var(--warning-light); color: #D97706; font-size: 1rem;">
+              <i class="bi bi-lightning-charge-fill"></i>
+            </div>
+            <h6 class="fw-bold mb-0 text-dark">Aksi Cepat Evaluator</h6>
+          </div>
+          <p class="text-muted small mb-3">
+            Gunakan pintasan di bawah untuk langsung menuju lembar penilaian kuesioner atau mengunduh laporan hasil evaluasi.
+          </p>
+          <div class="d-grid gap-2">
+            <button class="btn btn-modern btn-modern-primary py-2 text-start px-3" onclick="showV('val')">
+              <i class="bi bi-clipboard2-check me-2"></i> Buka Lembar Validasi Nilai
+            </button>
+            <button class="btn btn-modern btn-modern-outline py-2 text-start px-3" onclick="showV('laporan')">
+              <i class="bi bi-file-earmark-bar-graph me-2"></i> Lihat Rekap Laporan Penilaian
+            </button>
+          </div>
+        </div>
+
+        <!-- Help Info Box -->
+        <div class="card-modern p-4" style="background: #F8FAFC; border-left: 4px solid var(--p);">
+          <h6 class="fw-bold text-primary mb-2 small"><i class="bi bi-info-circle me-1"></i> Pedoman Evaluator</h6>
+          <ul class="text-muted small ps-3 mb-0" style="line-height: 1.6;">
+            <li>Periksa dokumen bukti dukung pada Google Drive sebelum menyetujui skor.</li>
+            <li>Gunakan tombol <strong>"Samakan Skor"</strong> untuk mempercepat verifikasi jika data sudah sesuai.</li>
+            <li>Nilai bersifat real-time tersinkronisasi ke Firebase.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       VIEW: KELOLA SOAL
+       ========================================== -->
+  <div id="v-soal" class="hidden fade-in">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+      <div>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-1 small text-muted">
+            <li class="breadcrumb-item">SimVel</li>
+            <li class="breadcrumb-item active" aria-current="page">Kelola Soal</li>
+          </ol>
+        </nav>
+        <h4 class="fw-bold mb-0 text-dark">Master Pertanyaan Kuesioner</h4>
+      </div>
+      <button class="btn btn-modern btn-modern-primary" onclick="showModalTambahSoal()">
+        <i class="bi bi-plus-lg"></i> Tambah Soal Baru
+      </button>
+    </div>
+
+    <div class="card-modern p-3 mb-3">
+      <div class="input-group">
+        <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+        <input type="text" id="search-soal-input" class="form-control form-control-modern border-start-0" placeholder="Cari pertanyaan, indikator kinerja, atau urusan..." onkeyup="filterSoalTable(this.value)">
+      </div>
+    </div>
+
+    <div class="table-modern-wrapper">
+      <div class="table-responsive">
+        <table class="table table-modern table-hover align-middle">
+          <thead>
+            <tr>
+              <th style="width: 70px;">ID</th>
+              <th>Kategori Utama</th>
+              <th>Sub Kategori</th>
+              <th>Pertanyaan</th>
+              <th>Indikator Kinerja</th>
+              <th style="width: 110px;">Bobot</th>
+              <th style="width: 120px;">Target OPD</th>
+              <th class="text-center" style="width: 110px;">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="t-soal-body">
+            <!-- Soal injected here -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       VIEW: VALIDASI NILAI
+       ========================================== -->
+  <div id="v-val" class="hidden fade-in">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+      <div>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-1 small text-muted">
+            <li class="breadcrumb-item">SimVel</li>
+            <li class="breadcrumb-item active" aria-current="page">Validasi Nilai</li>
+          </ol>
+        </nav>
+        <h4 class="fw-bold mb-0 text-dark">Validasi Nilai Kuesioner</h4>
+      </div>
+    </div>
+
+    <!-- View 1: List of Urusan -->
+    <div id="val-subkat-view">
+      <div class="card-modern p-3 mb-4">
+        <div class="row g-2 align-items-center">
+          <div class="col-md-8">
+            <div class="input-group">
+              <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+              <input type="text" id="search-urusan-input" class="form-control form-control-modern border-start-0" placeholder="Cari Urusan Pemerintahan..." onkeyup="filterUrusanTable(this.value)">
+            </div>
+          </div>
+          <div class="col-md-4 text-end">
+            <button class="btn btn-modern btn-modern-outline w-100" onclick="loadSubKat()">
+              <i class="bi bi-arrow-repeat"></i> Refresh Daftar Urusan
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-modern-wrapper">
+        <div class="table-responsive">
+          <table class="table table-modern table-hover align-middle">
+            <thead>
+              <tr>
+                <th>Urusan Pemerintahan (Sub Kategori)</th>
+                <th style="width: 250px;">Status Validasi OPD</th>
+                <th class="text-end" style="width: 180px;">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="val-subkat-list">
+              <!-- Urusan injected here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- View 2: Validation Form Detail -->
+    <div id="val-form-view" class="hidden">
+      <!-- Top Sticky Action Bar in Validation Form -->
+      <div class="card-modern p-3 mb-4 sticky-top" style="top: 10px; z-index: 1000; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+          <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-sm btn-modern-outline" onclick="kembaliKeDaftarValidasi()">
+              <i class="bi bi-arrow-left"></i> Kembali
+            </button>
+            <h5 class="fw-bold mb-0 text-primary" id="val-active-subkat"></h5>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <div class="form-check form-switch m-0 d-flex align-items-center gap-2">
+              <input class="form-check-input mt-0" type="checkbox" id="switch-link-asli" onchange="toggleLinkAsli(this.checked)">
+              <label class="form-check-label small fw-semibold text-dark" for="switch-link-asli">
+                <i class="bi bi-folder-symlink me-1"></i> Cek Link Asli
+              </label>
+            </div>
+            <button class="btn btn-sm btn-modern-outline" onclick="doRefreshSnapshotSubKat()" title="Refresh snapshot Drive">
+              <i class="bi bi-arrow-clockwise"></i> Refresh Snapshot
+            </button>
+            <button id="btn-save-val" class="btn btn-sm btn-modern btn-modern-primary hidden" onclick="simpanVal()">
+              <i class="bi bi-check2-circle"></i> SIMPAN VALIDASI
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="val-list">
+        <!-- Soal & jawaban per OPD rendered here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       VIEW: LAPORAN PENILAIAN
+       ========================================== -->
+  <div id="v-laporan" class="hidden fade-in">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+      <div>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-1 small text-muted">
+            <li class="breadcrumb-item">SimVel</li>
+            <li class="breadcrumb-item active" aria-current="page">Laporan Penilaian</li>
+          </ol>
+        </nav>
+        <h4 class="fw-bold mb-0 text-dark">Rekapitulasi Laporan Penilaian</h4>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-modern btn-modern-outline btn-sm" onclick="loadLaporan()">
+          <i class="bi bi-arrow-clockwise"></i> Perbarui Data
+        </button>
+      </div>
+    </div>
+
+    <div class="table-modern-wrapper">
+      <div class="table-responsive">
+        <table class="table table-modern table-bordered table-hover align-middle text-center mb-0">
+          <thead id="t-lap-head"></thead>
+          <tbody id="t-lap-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       VIEW: PENGATURAN (TABBED LAYOUT)
+       ========================================== -->
+  <div id="v-pengaturan" class="hidden fade-in">
+    <div class="mb-4">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1 small text-muted">
+          <li class="breadcrumb-item">SimVel</li>
+          <li class="breadcrumb-item active" aria-current="page">Pengaturan</li>
+        </ol>
+      </nav>
+      <h4 class="fw-bold mb-0 text-dark">Pengaturan Sistem SimVel</h4>
+    </div>
+
+    <div class="card-modern p-4">
+      <!-- Tabs Header -->
+      <ul class="nav nav-tabs nav-tabs-modern mb-4" id="settingsTabs" role="tablist">
+        <li class="nav-item">
+          <button class="nav-link active" id="tab-faktor-btn" onclick="switchSettingsTab('faktor')">
+            <i class="bi bi-calculator me-1"></i> Faktor Umum & Bonus
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" id="tab-template-btn" onclick="switchSettingsTab('template')">
+            <i class="bi bi-file-earmark-word me-1"></i> Template & Drive
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" id="tab-deadline-btn" onclick="switchSettingsTab('deadline')">
+            <i class="bi bi-clock-history me-1"></i> Batas Waktu (Deadline)
+          </button>
+        </li>
+      </ul>
+
+      <!-- Tab 1: Faktor Umum -->
+      <div id="tab-faktor-content">
+        <p class="text-muted small mb-4">Nilai ini berlaku sama mutlak untuk semua OPD saat kalkulasi Laporan Penilaian.</p>
+        <div class="row g-3 mb-3">
+          <div class="col-md-8">
+            <label class="form-label fw-semibold small text-muted">Nama Indikator 1</label>
+            <input type="text" id="fu_1_name" class="form-control form-control-modern">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small text-muted">Bobot / Nilai</label>
+            <input type="number" id="fu_1_val" class="form-control form-control-modern" step="0.01">
+          </div>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-8">
+            <label class="form-label fw-semibold small text-muted">Nama Indikator 2</label>
+            <input type="text" id="fu_2_name" class="form-control form-control-modern">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small text-muted">Bobot / Nilai</label>
+            <input type="number" id="fu_2_val" class="form-control form-control-modern" step="0.01">
+          </div>
+        </div>
+        <div class="row g-3 mb-4">
+          <div class="col-md-8">
+            <label class="form-label fw-semibold small text-muted">Nama Indikator 3</label>
+            <input type="text" id="fu_3_name" class="form-control form-control-modern">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small text-muted">Bobot / Nilai</label>
+            <input type="number" id="fu_3_val" class="form-control form-control-modern" step="0.01">
+          </div>
+        </div>
+
+        <div class="mb-4 pt-3 border-top">
+          <label class="form-label fw-semibold small text-muted">Urusan yang Dikecualikan dari Bonus 1.1x</label>
+          <textarea id="excluded_bonus" class="form-control form-control-modern" rows="2" placeholder="Contoh: Kesehatan, Pendidikan, Pekerjaan Umum"></textarea>
+          <div class="form-text small">Pisahkan dengan koma. Nama urusan harus sesuai dengan Sub Kategori di Master Pertanyaan.</div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Template Dokumen -->
+      <div id="tab-template-content" class="hidden">
+        <h6 class="fw-bold mb-3 text-dark">Integrasi Dokumen Cetak</h6>
+        <div class="mb-3">
+          <label class="form-label fw-semibold small text-muted">ID Template Google Docs</label>
+          <input type="text" id="template_id" class="form-control form-control-modern" placeholder="Contoh: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms">
+          <div class="form-text small">Pastikan template berisi tag yang valid untuk otomatisasi pembuatan dokumen.</div>
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-semibold small text-muted">ID Folder Penyimpanan (Google Drive)</label>
+          <input type="text" id="folder_id" class="form-control form-control-modern" placeholder="Contoh: 0BwwA4oUTeiV1TGRPeTVjaWRyZ1E">
+          <div class="form-text small">Laporan PDF yang dicetak akan tersimpan otomatis ke folder Google Drive ini.</div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Deadline -->
+      <div id="tab-deadline-content" class="hidden">
+        <h6 class="fw-bold mb-3 text-dark">Batas Waktu Pengisian Kuesioner</h6>
+        <div class="mb-4">
+          <label class="form-label fw-semibold small text-muted">Batas Waktu Global (Semua Responden)</label>
+          <input type="datetime-local" id="deadline_global" class="form-control form-control-modern">
+          <div class="form-text small">Berlaku untuk semua responden yang tidak memiliki pengaturan waktu khusus.</div>
+        </div>
+
+        <div class="pt-3 border-top mb-4">
+          <label class="form-label fw-semibold small text-muted">Pengecualian Batas Waktu per OPD</label>
+          <div class="input-group mb-3">
+            <select id="sel_opd_deadline" class="form-select form-select-modern">
+              <option value="">-- Pilih OPD --</option>
+            </select>
+            <input type="datetime-local" id="input_opd_deadline" class="form-control form-control-modern">
+            <button class="btn btn-modern btn-modern-outline" onclick="tambahDeadlineOPD()">
+              <i class="bi bi-plus-lg"></i> Tambah
+            </button>
+          </div>
+          <div class="table-modern-wrapper">
+            <table class="table table-modern table-bordered align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Nama OPD</th>
+                  <th>Batas Waktu Khusus</th>
+                  <th width="80" class="text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="t-opd-deadline-body">
+                <!-- Injected here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-3 border-top mt-4 text-end">
+        <button class="btn btn-modern btn-modern-primary px-4" onclick="simpanPengaturanUmum()">
+          <i class="bi bi-save2"></i> Simpan Semua Pengaturan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       VIEW: KELOLA DATA (RESET)
+       ========================================== -->
+  <div id="v-reset" class="hidden fade-in">
+    <div class="mb-4">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1 small text-muted">
+          <li class="breadcrumb-item">SimVel</li>
+          <li class="breadcrumb-item active" aria-current="page">Kelola Data (Reset)</li>
+        </ol>
+      </nav>
+      <h4 class="fw-bold mb-0 text-dark">Reset & Pembersihan Data</h4>
+    </div>
+
+    <div class="card-modern p-4" style="border-left: 4px solid var(--danger);">
+      <div class="d-flex align-items-center gap-2 text-danger fw-bold mb-2">
+        <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+        <span>Peringatan Tindakan Destruktif</span>
+      </div>
+      <p class="text-muted small mb-4">
+        Tindakan reset akan menghapus data di database Firebase secara permanen dan tidak dapat dibatalkan. Pastikan Anda telah mengonfirmasi sebelum melanjutkan.
+      </p>
+
+      <div class="mb-4">
+        <label class="form-label fw-semibold small text-muted">Pilih Nama OPD yang Ingin Dikelola</label>
+        <select id="sel-reset-opd" class="form-select form-select-modern">
+          <option value="">-- Memuat Data OPD --</option>
+        </select>
+      </div>
+
+      <div class="row g-3">
+        <div class="col-md-6">
+          <button class="btn btn-modern btn-modern-outline text-warning border-warning w-100 py-3" onclick="resetValidasiAction()">
+            <i class="bi bi-eraser fs-5"></i>
+            <div>
+              <div class="fw-bold">Hapus Validasi Evaluator</div>
+              <div class="small text-muted fw-normal">Hapus nilai evaluator saja, responden tidak perlu isi ulang</div>
+            </div>
+          </button>
+        </div>
+        <div class="col-md-6">
+          <button class="btn btn-modern btn-modern-outline text-danger border-danger w-100 py-3" onclick="resetJawabanAction()">
+            <i class="bi bi-trash3 fs-5"></i>
+            <div>
+              <div class="fw-bold">Hapus Jawaban Responden</div>
+              <div class="small text-muted fw-normal">Hapus seluruh kuesioner, responden wajib mengisi dari awal</div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       VIEW: KELOLA USER
+       ========================================== -->
+  <div id="v-user" class="hidden fade-in">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+      <div>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-1 small text-muted">
+            <li class="breadcrumb-item">SimVel</li>
+            <li class="breadcrumb-item active" aria-current="page">Kelola Pengguna</li>
+          </ol>
+        </nav>
+        <h4 class="fw-bold mb-0 text-dark">Manajemen Akun Pengguna</h4>
+      </div>
+      <button class="btn btn-modern btn-modern-primary" onclick="formUser()">
+        <i class="bi bi-person-plus-fill"></i> Tambah User Baru
+      </button>
+    </div>
+
+    <div class="table-modern-wrapper">
+      <div class="table-responsive">
+        <table class="table table-modern table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Username</th>
+              <th>Password</th>
+              <th>Role</th>
+              <th>Nama OPD Terkait</th>
+              <th class="text-end" style="width: 100px;">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="t-user-body">
+            <!-- User rows injected here -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Tambah Soal Baru (Modern) -->
+  <div class="modal fade" id="modalTambahSoal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="modal-header bg-white border-bottom py-3">
+          <h5 class="modal-title fw-bold text-primary mb-0">
+            <i class="bi bi-plus-circle me-2"></i>Tambah Soal Baru
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <form id="form-tambah-soal">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold small text-muted">ID Soal (Opsional)</label>
+                <input type="text" id="tsoal-id" class="form-control form-control-modern" placeholder="Contoh: Q12 (Kosongkan utk auto)">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold small text-muted">Kategori Utama</label>
+                <input type="text" id="tsoal-kategori" class="form-control form-control-modern" placeholder="Contoh: TATA KELOLA KEUANGAN" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold small text-muted">Sub Kategori</label>
+                <input type="text" id="tsoal-subkategori" class="form-control form-control-modern" placeholder="Contoh: Pengelolaan Aset" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold small text-muted">Target OPD</label>
+                <input type="text" id="tsoal-target" class="form-control form-control-modern" placeholder="Kosongkan jika semua OPD">
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold small text-muted">Pertanyaan Kuesioner</label>
+                <textarea id="tsoal-pertanyaan" class="form-control form-control-modern" rows="3" placeholder="Tuliskan isi pertanyaan kuesioner..." required></textarea>
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold small text-muted">Indikator Kinerja</label>
+                <textarea id="tsoal-indikator" class="form-control form-control-modern" rows="2" placeholder="Tuliskan indikator kinerja..."></textarea>
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold small text-muted">Bobot Nilai (A|B|C|D|E)</label>
+                <input type="text" id="tsoal-bobot" class="form-control form-control-modern" value="100|80|60|40|20">
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer bg-light border-top py-3">
+          <button type="button" class="btn btn-modern btn-modern-outline" data-bs-dismiss="modal">Batal</button>
+          <button type="button" class="btn btn-modern btn-modern-primary" onclick="simpanSoalBaruAction()">Simpan Soal</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Edit Soal (Modern) -->
+  <div class="modal fade" id="modalEditSoal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="modal-header bg-white border-bottom py-3">
+          <h5 class="modal-title fw-bold text-dark mb-0">
+            <i class="bi bi-pencil-square me-2 text-warning"></i>Edit Detail Soal
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <form id="form-edit-soal">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold small text-muted">ID Soal</label>
+                <input type="text" id="esoal-id" class="form-control form-control-modern" readonly disabled>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold small text-muted">Kategori Utama</label>
+                <input type="text" id="esoal-kategori" class="form-control form-control-modern" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold small text-muted">Sub Kategori</label>
+                <input type="text" id="esoal-subkategori" class="form-control form-control-modern" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold small text-muted">Target OPD</label>
+                <input type="text" id="esoal-target" class="form-control form-control-modern">
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold small text-muted">Pertanyaan Kuesioner</label>
+                <textarea id="esoal-pertanyaan" class="form-control form-control-modern" rows="3" required></textarea>
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold small text-muted">Indikator Kinerja</label>
+                <textarea id="esoal-indikator" class="form-control form-control-modern" rows="2"></textarea>
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold small text-muted">Bobot Nilai (A|B|C|D|E)</label>
+                <input type="text" id="esoal-bobot" class="form-control form-control-modern">
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer bg-light border-top py-3">
+          <button type="button" class="btn btn-modern btn-modern-outline" data-bs-dismiss="modal">Batal</button>
+          <button type="button" class="btn btn-modern btn-modern-primary" onclick="simpanEditSoalAction()">Simpan Perubahan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modern Footer -->
+  <footer class="text-center py-4 mt-5 small text-muted border-top">
+    <div>Made with <span style="color: #ef4444;">❤️</span> by <strong>Bagian Organisasi Setda Kab. Muaro Jambi</strong></div>
+    <div style="font-size: 0.75rem;" class="mt-1">SimVel Modern v2.0 • Sistem Informasi Variabel Umum Daerah</div>
+  </footer>
+</div>
+
+<script>
+  function toggleSidebarModern(show) {
+    const sb = document.getElementById('sidebar');
+    const bd = document.getElementById('sidebar-backdrop');
+    if (!sb) return;
+    if (show) {
+      sb.classList.add('show');
+      if (bd) bd.classList.add('show');
+    } else {
+      sb.classList.remove('show');
+      if (bd) bd.classList.remove('show');
+    }
+  }
+
+  function closeSidebarOnMobile() {
+    if (window.innerWidth < 992) {
+      toggleSidebarModern(false);
+    }
+  }
+
+  function switchSettingsTab(tabName) {
+    ['faktor', 'template', 'deadline'].forEach(t => {
+      const c = document.getElementById(`tab-${t}-content`);
+      const b = document.getElementById(`tab-${t}-btn`);
+      if (c) c.classList.add('hidden');
+      if (b) b.classList.remove('active');
+    });
+    const targetC = document.getElementById(`tab-${tabName}-content`);
+    const targetB = document.getElementById(`tab-${tabName}-btn`);
+    if (targetC) targetC.classList.remove('hidden');
+    if (targetB) targetB.classList.add('active');
+  }
+
+  function filterOpdSudahTable(query) {
+    const q = (query || "").toLowerCase();
+    const rows = document.querySelectorAll('#table-opd-sudah tbody tr');
+    rows.forEach(row => {
+      const text = row.innerText.toLowerCase();
+      row.style.display = text.includes(q) ? '' : 'none';
+    });
+  }
+
+  function filterSoalTable(query) {
+    const q = (query || "").toLowerCase();
+    const rows = document.querySelectorAll('#t-soal-body tr');
+    rows.forEach(row => {
+      const text = row.innerText.toLowerCase();
+      row.style.display = text.includes(q) ? '' : 'none';
+    });
+  }
+</script>

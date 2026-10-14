@@ -1,0 +1,432 @@
+<!-- Load Base Business Logic from JS.html -->
+<?!= include('JS'); ?>
+
+<script>
+  /**
+   * SimVel Modern UI Controller Overrides
+   * Menyesuaikan komponen tampilan agar matching 100% dengan Mockup Modern
+   * tanpa mengubah satu pun alur data atau backend Firebase.
+   */
+
+  // 1. Modern Dashboard Statistics Renderer
+  window.loadStats = function() {
+    google.script.run.withSuccessHandler(s => { 
+      const totEl = document.getElementById('s-tot');
+      const urusanEl = document.getElementById('s-urusan-sudah');
+      const taEl = document.getElementById('s-ta');
+      const tbEl = document.getElementById('s-tb');
+      const tcEl = document.getElementById('s-tc');
+      const tlEl = document.getElementById('s-tl');
+
+      if (totEl) totEl.innerText = s.total || '0'; 
+      if (urusanEl) urusanEl.innerText = s.urusan_sudah || '0'; 
+      if (taEl) taEl.innerText = s.tipeA || '0';
+      if (tbEl) tbEl.innerText = s.tipeB || '0';
+      if (tcEl) tcEl.innerText = s.tipeC || '0';
+      if (tlEl) tlEl.innerText = s.tipeLain || '0';
+      
+      // Render Modern Table OPD
+      let h = '';
+      if(s.list_opd && s.list_opd.length > 0) {
+        s.list_opd.forEach((opd, i) => {
+          h += `
+          <tr>
+            <td class="text-muted fw-bold small" style="width: 50px;">${i+1}</td>
+            <td class="fw-semibold text-dark">
+              <i class="bi bi-building me-2 text-primary opacity-75"></i>${opd}
+            </td>
+            <td class="text-end">
+              <span class="badge badge-soft-success">
+                <i class="bi bi-check2"></i> Terkirim
+              </span>
+            </td>
+          </tr>`;
+        });
+      } else {
+        h = '<tr><td colspan="3" class="text-center text-muted py-4"><i class="bi bi-inbox fs-4 d-block mb-1 text-muted"></i>Belum ada OPD yang mengirimkan kuesioner</td></tr>';
+      }
+      const tbody = document.getElementById('t-opd-sudah-body');
+      if (tbody) tbody.innerHTML = h;
+    }).getStats(); 
+  };
+
+  // 2. Modern Urusan Pemerintahan List Renderer
+  window.loadSubKat = function() {
+    const subKatView = document.getElementById('val-subkat-view');
+    const formView = document.getElementById('val-form-view');
+    if (subKatView) subKatView.classList.remove('hidden');
+    if (formView) formView.classList.add('hidden');
+    
+    const searchInput = document.getElementById('search-urusan-input');
+    if (searchInput) searchInput.value = '';
+
+    Swal.showLoading();
+    google.script.run.withSuccessHandler(res => {
+      Swal.close();
+      
+      res.sort((a, b) => {
+        let valA = (a.total_jawaban > 0 && a.total_divalidasi >= a.total_jawaban) ? 3 : (a.total_jawaban > 0 ? 2 : 1);
+        let valB = (b.total_jawaban > 0 && b.total_divalidasi >= b.total_jawaban) ? 3 : (b.total_jawaban > 0 ? 2 : 1);
+        return valB - valA;
+      });
+      
+      let h = '';
+      res.forEach(s => {
+        let statusBadge = '';
+        let btnClass = 'btn-modern-primary';
+        if (s.total_jawaban === 0) {
+           statusBadge = '<span class="badge badge-soft-neutral"><i class="bi bi-dash-circle me-1"></i> Belum ada data</span>';
+           btnClass = 'btn-modern-outline text-muted';
+        } else if (s.total_divalidasi >= s.total_jawaban) {
+           statusBadge = '<span class="badge badge-soft-success"><i class="bi bi-check-circle-fill me-1"></i> Selesai Tervalidasi</span>';
+           btnClass = 'btn-modern-outline text-success border-success';
+        } else {
+           statusBadge = `<span class="badge badge-soft-warning"><i class="bi bi-hourglass-split me-1"></i> Validasi: ${s.total_divalidasi}/${s.total_jawaban}</span>`;
+           btnClass = 'btn-modern-primary';
+        }
+        
+        h += `
+        <tr>
+          <td>
+            <div class="fw-bold text-dark mb-0">
+              <i class="bi bi-folder2-open me-2 text-primary"></i>${s.nama}
+            </div>
+          </td>
+          <td>${statusBadge}</td>
+          <td class="text-end">
+            <button class="btn ${btnClass} btn-sm btn-modern px-3" onclick="muatValidasi('${s.nama.replace(/'/g, "\\'")}')">
+              <i class="bi bi-pencil-square me-1"></i> Buka Lembar Validasi
+            </button>
+          </td>
+        </tr>`;
+      });
+      const listEl = document.getElementById('val-subkat-list');
+      if (listEl) listEl.innerHTML = h;
+    }).withFailureHandler(err => {
+      Swal.fire('Error', 'Gagal memuat daftar urusan: ' + (err.message || err), 'error');
+    }).getSubKategoriStats();
+  };
+
+  // 3. Modern Validation Form Questions List (with Quick Score Pill Buttons)
+  window.renderValList = function() {
+    if (!vData) return;
+    let html = '';
+    vData.forEach((soal, i) => {
+      let weights = soal.bobot_str ? soal.bobot_str.split('|') : [0,0,0,0,0];
+      const labels = ['A', 'B', 'C', 'D', 'E'];
+
+      html += `
+      <div class="q-card-modern mb-4">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <span class="badge badge-soft-primary small">Soal ID: ${soal.id_soal || (i+1)}</span>
+        </div>
+        <h5 class="fw-bold mb-2 text-dark">${soal.pertanyaan}</h5>
+        
+        <!-- Info Kriteria Pilihan & Bobot Nilai -->
+        <div class="indicator-box-modern mb-4">
+          <div class="fw-bold mb-1 text-uppercase small d-flex align-items-center">
+            <i class="bi bi-info-circle-fill me-2 fs-6"></i> Indikator & Kriteria Penilaian:
+          </div>
+          ${renderKriteriaBobotBox(soal.indikator, soal.bobot_str)}
+        </div>`;
+        
+      if(soal.jawaban_opd.length === 0) {
+         html += `<div class="p-3 bg-light rounded text-muted small text-center"><i class="bi bi-inbox me-1"></i> Belum ada OPD yang menjawab butir evaluasi ini.</div>`;
+      } else {
+        soal.jawaban_opd.forEach((ans, j) => {
+          if (ans.skala_evaluator === undefined || ans.skala_evaluator === null || ans.skala_evaluator === "") {
+            ans.skala_evaluator = ans.skala_responden;
+          }
+          
+          let selectOptions = `<option value="">-- Pilih Skor --</option>`;
+          let pillButtonsHtml = '';
+
+          labels.forEach((lab, k) => {
+            let bbt = weights[k] ? weights[k].trim() : "0";
+            let evalSkorStr = (ans.skala_evaluator !== undefined && ans.skala_evaluator !== null) ? ans.skala_evaluator.toString().trim() : "";
+            let isSelected = (evalSkorStr === bbt);
+            selectOptions += `<option value="${bbt}" ${isSelected ? 'selected' : ''}>${lab} (Bobot: ${bbt})</option>`;
+            
+            pillButtonsHtml += `
+              <button type="button" class="score-pill-btn ${isSelected ? 'active' : ''}" 
+                id="pill-${i}-${j}-${k}"
+                onclick="pilihSkorPill(${i}, ${j}, '${bbt}', this)"
+                title="Pilih Skor ${lab} (${bbt})">
+                ${lab} <span class="small opacity-75">(${bbt})</span>
+              </button>`;
+          });
+
+          // Bukti dukung chip buttons
+          const snapshotUrl = ans.link_arsip || ans.link;
+          let linkButtonsHtml = '';
+
+          if (showLinkAsli && ans.link_arsip && ans.link) {
+            linkButtonsHtml = `
+              <a href="${ans.link_arsip}" target="_blank" class="evidence-chip" style="background: var(--success-light); border-color: #A7F3D0; color: #059669;" title="Link Snapshot Admin (Terkunci)">
+                <i class="bi bi-shield-lock-fill"></i> Snapshot Admin
+              </a>
+              <a href="${ans.link}" target="_blank" class="evidence-chip" style="background: var(--warning-light); border-color: #FDE68A; color: #D97706;" title="Link Evd. Asli Responden (Live)">
+                <i class="bi bi-folder-symlink-fill"></i> Link Evd. Asli
+              </a>`;
+          } else if (ans.link && !ans.link_arsip && DRIVE_REGEX.test(ans.link)) {
+            linkButtonsHtml = `
+              <a href="${ans.link}" target="_blank" class="evidence-chip" style="background: var(--danger-light); border-color: #FECACA; color: #DC2626;" title="Link Drive Private">
+                <i class="bi bi-lock-fill"></i> Terkunci Private (OPD)
+              </a>`;
+          } else {
+            const btnLabel = ans.link_arsip ? '<i class="bi bi-shield-lock text-success"></i> Snapshot Admin' : '<i class="bi bi-folder2 text-primary"></i> Berkas Bukti';
+            linkButtonsHtml = `<a href="${snapshotUrl}" target="_blank" class="evidence-chip">${btnLabel}</a>`;
+          }
+
+          const safeOpd = (ans.opd || '').replace(/'/g, "\\'");
+          const formattedTs = formatTimestampDisplay(ans.timestamp);
+
+          html += `
+          <div class="card-modern p-3 mb-3" style="background: #FAFAFA;">
+            <!-- Header OPD Submission -->
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 pb-2 border-bottom">
+              <div>
+                <h6 class="fw-bold text-dark mb-0"><i class="bi bi-building me-1 text-primary"></i> ${ans.opd}</h6>
+                <span class="badge badge-soft-neutral small mt-1"><i class="bi bi-clock-history me-1"></i> Disubmit: ${formattedTs}</span>
+              </div>
+              <div class="d-flex align-items-center flex-wrap gap-2">
+                ${linkButtonsHtml}
+                <button class="btn btn-sm btn-modern-outline text-success border-success" onclick="samakanSkor(${i}, ${j}, '${ans.skala_responden}')" title="Samakan skor dengan responden">
+                  <i class="bi bi-arrow-down-circle"></i> Samakan Skor
+                </button>
+                <button class="btn btn-sm btn-modern-outline" onclick="doRefreshSnapshotSingleOPD('${safeOpd}')" title="Refresh Snapshot Drive OPD ini">
+                  <i class="bi bi-arrow-clockwise"></i>
+                </button>
+              </div>
+            </div>
+            
+            <!-- Detail Responden Kiri vs Skor Kanan -->
+            <div class="row g-3 mb-3 align-items-stretch">
+              <div class="col-md-8">
+                <div class="p-3 rounded-3 bg-white border h-100 small" style="line-height: 1.6;">
+                  <div><strong class="text-muted">Nilai/Satuan Sistem:</strong> <span class="text-dark fw-semibold">${ans.sistem_nilai || '-'}</span></div>
+                  <div><strong class="text-muted">Data Dokumen Pendukung:</strong> <span class="text-dark fw-semibold">${ans.nama_dokumen || '-'}</span></div>
+                  <div><strong class="text-muted">Sumber & Tahun Data:</strong> <span class="text-dark">${ans.sumber_data || '-'}</span></div>
+                  <div class="mt-1"><strong class="text-muted">Penjelasan Narasi:</strong> <span class="text-dark fst-italic">${ans.penjelasan || '-'}</span></div>
+                </div>
+              </div>
+              
+              <div class="col-md-4">
+                <div class="card-modern p-3 text-center d-flex flex-column justify-content-center h-100" style="background: var(--p-light); border-color: rgba(0,87,183,0.2);">
+                  <div class="row g-0 align-items-center">
+                    <div class="col-6 border-end" style="border-color: rgba(0,87,183,0.2) !important;">
+                      <span class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.65rem;">Opsi Pilihan</span>
+                      <span class="fs-2 fw-bold text-primary">${ans.pilihan_responden || '-'}</span>
+                    </div>
+                    <div class="col-6">
+                      <span class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.65rem;">Skor Responden</span>
+                      <span class="fs-3 fw-bold text-success">${ans.skala_responden !== "" && ans.skala_responden !== null ? ans.skala_responden : '-'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Evaluator Scoring Row -->
+            <div class="row g-3 align-items-center pt-2 border-top">
+              <div class="col-lg-5">
+                <label class="small fw-bold text-muted mb-1 d-block">Pilih Skor Evaluator:</label>
+                <div class="score-pill-group" id="score-pill-group-${i}-${j}">
+                  ${pillButtonsHtml}
+                </div>
+                <!-- Hidden Select for full backwards compatibility -->
+                <select id="sel-eval-${i}-${j}" class="d-none" onchange="vData[${i}].jawaban_opd[${j}].skala_evaluator=this.value">
+                  ${selectOptions}
+                </select>
+              </div>
+              <div class="col-lg-7">
+                <label class="small fw-bold text-muted mb-1">Catatan Tambahan Evaluator:</label>
+                <input type="text" class="form-control form-control-sm form-control-modern" 
+                  value="${ans.catatan||''}" 
+                  placeholder="Beri catatan hasil verifikasi (opsional)..."
+                  oninput="vData[${i}].jawaban_opd[${j}].catatan=this.value">
+              </div>
+            </div>
+          </div>`;
+        });
+      }
+      html += `</div>`;
+    });
+    const valList = document.getElementById('val-list');
+    if (valList) valList.innerHTML = html;
+  };
+
+  // Helper untuk klik pill skor evaluator
+  window.pilihSkorPill = function(i, j, skorVal, btnEl) {
+    if (!vData || !vData[i] || !vData[i].jawaban_opd[j]) return;
+    vData[i].jawaban_opd[j].skala_evaluator = skorVal;
+    
+    // Update select element fallback
+    const sel = document.getElementById(`sel-eval-${i}-${j}`);
+    if (sel) sel.value = skorVal;
+
+    // Update active pill button visual
+    const group = document.getElementById(`score-pill-group-${i}-${j}`);
+    if (group) {
+      group.querySelectorAll('.score-pill-btn').forEach(btn => btn.classList.remove('active'));
+    }
+    if (btnEl) btnEl.classList.add('active');
+  };
+
+  // 4. Modern Respondent Questionnaire Renderer
+  window.showS = function(idx) {
+    if (idx < 0 || idx >= cats.length) return;
+    const key = cats[idx], qs = grp[key], cont = document.getElementById('f-cont');
+    const katInfo = parentCat[key];
+    
+    let dis = (isDeadlinePassed || isOPDSudahKirim) ? 'disabled' : '';
+
+    let lockedBanner = isOPDSudahKirim ? `
+      <div class="card-modern p-3 mb-4 d-flex align-items-center gap-3 border-info" style="background: var(--info-light);">
+        <i class="bi bi-lock-fill fs-2 text-info"></i>
+        <div>
+          <h6 class="fw-bold mb-0 text-dark">Formulir Terkunci (Jawaban Telah Terkirim)</h6>
+          <p class="mb-0 small text-muted">OPD <strong>${sess.nama_opd}</strong> telah resmi mengirimkan kuesioner. Formulir dalam status <em>hanya lihat (read-only)</em>.</p>
+        </div>
+      </div>` : '';
+    
+    // Progress calculation
+    const currentStep = idx + 1;
+    const totalSteps = cats.length;
+    const progressPercent = Math.round((currentStep / totalSteps) * 100);
+
+    let h = lockedBanner + `
+      <!-- Stepper Header -->
+      <div class="card-modern p-3 mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <div>
+            <span class="badge badge-soft-primary small mb-1">Langkah ${currentStep} dari ${totalSteps}</span>
+            <h5 class="fw-bold mb-0 text-dark">${katInfo.utama}</h5>
+          </div>
+          <div class="text-end">
+            <span class="fw-bold text-primary">${progressPercent}% Selesai</span>
+          </div>
+        </div>
+        <div class="stepper-progress-track">
+          <div class="stepper-progress-fill" style="width: ${progressPercent}%;"></div>
+        </div>
+        <div class="mt-2 text-muted small">
+          <i class="bi bi-folder2-open me-1 text-primary"></i> Sub Kategori: <strong>${katInfo.subkat}</strong>
+        </div>
+      </div>`;
+
+    qs.forEach((q, qIndex) => {
+      const s = ans[q[0]] || {id: q[0], skala:"", link:"", pilihan_teks: "", nama_dokumen: "", sistem_nilai: "", sumber_data: "", penjelasan: ""};
+      let weights = q[8] ? q[8].toString().split('|') : [0,0,0,0,0];
+      const labels = ['A', 'B', 'C', 'D', 'E'];
+
+      let choiceHtml = `<div class="mt-1">`;
+      labels.forEach((lab, i) => {
+        let bbt = weights[i] ? weights[i].trim() : "0";
+        let inputId = `q_${q[0]}_${lab}`;
+        let isChecked = (s.pilihan_teks === lab);
+        
+        choiceHtml += `
+          <div class="choice-card-modern ${isChecked ? 'selected' : ''}" 
+            onclick="document.getElementById('${inputId}').click()">
+            <div class="d-flex align-items-center gap-2">
+              <input class="form-check-input mt-0" type="radio" name="radio_${q[0]}" 
+                id="${inputId}" value="${bbt}" data-teks="${lab}" 
+                onchange="handleModernRadioSelect('${q[0]}', this)" ${isChecked ? 'checked' : ''} ${dis} style="pointer-events: none;">
+              <span class="fw-bold text-dark">${lab}.</span>
+              <span class="small text-muted">Pilihan Jawaban ${lab}</span>
+            </div>
+            <span class="badge badge-soft-primary small">${bbt} bobot</span>
+          </div>`;
+      });
+      choiceHtml += `</div>`;
+
+      h += `
+      <div class="q-card-modern mb-4" id="q-card-${q[0]}">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <span class="badge badge-soft-neutral small">Pertanyaan #${qIndex + 1}</span>
+          <span class="text-danger small fw-bold">* Wajib Diisi</span>
+        </div>
+        <h5 class="fw-bold mb-3 text-dark">${q[3]}</h5> 
+        <div class="indicator-box-modern mb-3">${(q[4]||'').replace(/\n/g,'<br>')}</div> 
+        
+        <div class="row g-4">
+          <div class="col-md-6">
+            <label class="small fw-bold text-dark mb-2">Pilih Jawaban Kuesioner:</label>
+            ${choiceHtml}
+          </div>
+          <div class="col-md-6">
+            <div class="p-3 bg-light rounded-3 border">
+              <label class="small fw-bold text-dark mb-1">Nilai / Satuan Sistem: <span class="text-danger">*</span></label>
+              <input type="text" id="nilai-${q[0]}" class="form-control form-control-sm form-control-modern mb-3" 
+                value="${s.sistem_nilai || ''}" oninput="savSistemNilai('${q[0]}',this)" 
+                placeholder="Contoh: 123 Desa / 85%" ${dis}>
+
+              <label class="small fw-bold text-dark mb-1">Nama Dokumen Pendukung: <span class="text-danger">*</span></label>
+              <input type="text" id="doc-${q[0]}" class="form-control form-control-sm form-control-modern mb-3" 
+                value="${s.nama_dokumen || ''}" oninput="savDocName('${q[0]}',this)" 
+                placeholder="Contoh: SK Bupati No. 12 Tahun 2024" ${dis}>
+
+              <label class="small fw-bold text-dark mb-1">Link Bukti Google Drive: <span class="text-danger">*</span></label>
+              <textarea id="link-${q[0]}" class="form-control form-control-sm form-control-modern mb-1 ${s.link && !/^https:\/\/(drive|docs)\.google\.com\/.*$/.test(s.link) ? 'is-invalid' : (s.link ? 'is-valid' : '')}" 
+                rows="2" oninput="savLinkVal('${q[0]}',this)" 
+                placeholder="https://drive.google.com/..." ${dis}>${s.link}</textarea>
+              <div class="invalid-feedback small">Harus berupa tautan Google Drive / Docs</div>
+              <div class="valid-feedback small">Tautan Google Drive valid!</div>
+              
+              <label class="small fw-bold text-dark mb-1 mt-3">Sumber Data & Tahun: <span class="text-danger">*</span></label>
+              <input type="text" id="sumber-${q[0]}" class="form-control form-control-sm form-control-modern mb-3" 
+                value="${s.sumber_data || ''}" oninput="savSumberData('${q[0]}',this)" 
+                placeholder="Contoh: BPS 2023, Laporan Dinas 2024" ${dis}>
+              
+              <label class="small fw-bold text-dark mb-1">Penjelasan / Narasi: <span class="text-danger">*</span></label>
+              <textarea id="penjelasan-${q[0]}" class="form-control form-control-sm form-control-modern" 
+                rows="2" oninput="savPenjelasan('${q[0]}',this)" 
+                placeholder="Tuliskan keterangan singkat mengenai bukti dukung tersebut..." ${dis}>${s.penjelasan || ''}</textarea>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    });
+
+    let btnLanjutKirim = idx < cats.length - 1 ? 'Lanjut ke Kategori Berikutnya <i class="bi bi-arrow-right ms-1"></i>' : 'KIRIM JAWABAN AKHIR <i class="bi bi-send ms-1"></i>';
+    let hideKirim = ((isDeadlinePassed || isOPDSudahKirim) && idx === cats.length - 1) ? 'd-none' : '';
+    let disDraft = (isDeadlinePassed || isOPDSudahKirim) ? 'disabled' : '';
+
+    h += `
+    <!-- Sticky Bottom Navigation Bar -->
+    <div class="sticky-action-bar">
+      <button class="btn btn-modern btn-modern-outline" onclick="showS(${idx-1})" ${idx===0?'disabled':''}>
+        <i class="bi bi-arrow-left"></i> Kembali
+      </button>
+      
+      <div class="d-none d-md-flex align-items-center gap-2 text-muted small">
+        <i class="bi bi-cloud-check text-success fs-5"></i>
+        <span>Draf tersimpan otomatis</span>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button class="btn btn-modern btn-modern-outline text-warning border-warning ${isOPDSudahKirim ? 'd-none' : ''}" 
+          onclick="simpanDrafManual()" title="Simpan isian sementara" ${disDraft}>
+          <i class="bi bi-bookmark-check-fill"></i> Simpan Draf
+        </button>
+        <button id="btn-kirim-ans" class="btn btn-modern btn-modern-primary ${hideKirim}" 
+          onclick="${idx<cats.length-1?`handleLanjut(${idx})`:`finS()`}">
+          ${btnLanjutKirim}
+        </button>
+      </div>
+    </div>`;
+    cont.innerHTML = h; window.scrollTo(0,0);
+  };
+
+  // Helper untuk toggle styling kartu pilihan yang dipilih responden
+  window.handleModernRadioSelect = function(soalId, radioInput) {
+    savRadio(soalId, radioInput);
+    const cardParent = document.getElementById(`q-card-${soalId}`);
+    if (cardParent) {
+      cardParent.querySelectorAll('.choice-card-modern').forEach(c => c.classList.remove('selected'));
+      const activeCard = radioInput.closest('.choice-card-modern');
+      if (activeCard) activeCard.classList.add('selected');
+    }
+  };
+</script>
