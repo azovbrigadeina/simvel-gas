@@ -262,6 +262,16 @@
     }
   });
 
+  function escHtml(v) {
+    return String(v === undefined || v === null ? '' : v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function escAttr(v) {
+    return escHtml(v).replace(/\n/g, ' ');
+  }
+
   function serverCall() {
     const token = (sess && sess.token) ? sess.token : "";
     return google.script.run
@@ -289,18 +299,22 @@
     // Check deadline first
     serverCall().withSuccessHandler(res => {
       let deadlineStr = "";
+      let deadlineUtc = 0;
       try {
         const opdDeadlines = JSON.parse(res.deadline_opd || '{}');
         if (opdDeadlines[sess.nama_opd]) {
           deadlineStr = opdDeadlines[sess.nama_opd];
+          deadlineUtc = new Date(deadlineStr).getTime();
         } else {
           deadlineStr = res.deadline_global || "";
+          deadlineUtc = res.deadline_global_utc || 0;
         }
       } catch(e) {
         deadlineStr = res.deadline_global || "";
+        deadlineUtc = res.deadline_global_utc || 0;
       }
-      
-      startDeadlineTimer(deadlineStr);
+
+      startDeadlineTimer(deadlineStr, deadlineUtc);
       
       // Fetch Draft first
       updateLoadingStatus('Memuat draf isian sebelumnya...');
@@ -384,21 +398,25 @@
     }).getDeadlineSettings();
   }
 
-  function startDeadlineTimer(deadlineStr) {
+  function startDeadlineTimer(deadlineStr, deadlineUtcOverride) {
     const banner = document.getElementById('deadline-banner');
     const textEl = document.getElementById('deadline-text');
     const countEl = document.getElementById('deadline-countdown');
-    
+
     if (deadlineTimerInterval) clearInterval(deadlineTimerInterval);
-    
+
     if (!deadlineStr) {
       banner.classList.add('d-none');
       isDeadlinePassed = false;
       return;
     }
-    
+
     banner.classList.remove('d-none');
-    const deadlineTime = new Date(deadlineStr).getTime();
+    // Gunakan timestamp UTC dari server jika tersedia agar perhitungan
+    // countdown konsisten dengan pengecekan server-side, terlepas dari timezone browser.
+    const deadlineTime = (deadlineUtcOverride && !isNaN(deadlineUtcOverride))
+      ? deadlineUtcOverride
+      : new Date(deadlineStr).getTime();
     
     function updateTimer() {
       const now = new Date().getTime();
@@ -453,15 +471,15 @@
         <i class="bi bi-lock-fill fs-2 text-info me-3"></i>
         <div>
           <h5 class="fw-bold mb-1 text-info">Formulir Terkunci (Jawaban Telah Terkirim)</h5>
-          <p class="mb-0 small text-dark">OPD <strong>${sess.nama_opd}</strong> telah resmi mengirimkan jawaban. Formulir dalam mode <em>hanya lihat (read-only)</em> dan tidak dapat diubah kembali kecuali dilakukan <strong>Reset Jawaban</strong> oleh Administrator.</p>
+          <p class="mb-0 small text-dark">OPD <strong>${escHtml(sess.nama_opd)}</strong> telah resmi mengirimkan jawaban. Formulir dalam mode <em>hanya lihat (read-only)</em> dan tidak dapat diubah kembali kecuali dilakukan <strong>Reset Jawaban</strong> oleh Administrator.</p>
         </div>
       </div>` : '';
     
     let h = lockedBanner + `
       <div class="p-3 mb-4 bg-primary text-white rounded shadow-sm text-center">
-        <h4 class="fw-bold mb-2 text-uppercase" style="white-space: normal; word-break: break-word; line-height: 1.3;">${katInfo.utama}</h4>
+        <h4 class="fw-bold mb-2 text-uppercase" style="white-space: normal; word-break: break-word; line-height: 1.3;">${escHtml(katInfo.utama)}</h4>
         <div class="badge bg-light text-primary fs-6 px-3 py-2 shadow-sm" style="white-space: normal; word-break: break-word; line-height: 1.4; max-width: 100%; display: inline-block;">
-          ${katInfo.subkat}
+          ${escHtml(katInfo.subkat)}
         </div>
       </div>`;
 
@@ -489,8 +507,8 @@
 
       h += `
       <div class="q-card" id="q-card-${q[0]}">
-        <h5 class="fw-bold mb-3">${q[3]} <span class="text-danger">*</span></h5> 
-        <div class="deskripsi-box mb-4">${(q[4]||'').replace(/\n/g,'<br>')}</div> 
+        <h5 class="fw-bold mb-3">${escHtml(q[3])} <span class="text-danger">*</span></h5> 
+        <div class="deskripsi-box mb-4">${escHtml(q[4]||'').replace(/\n/g,'<br>')}</div> 
         <div class="row g-3">
           <div class="col-md-6">
             <label class="small fw-bold text-muted mb-2">Pilih Jawaban: <span class="text-danger">*</span></label>
@@ -498,10 +516,10 @@
           </div>
           <div class="col-md-6">
             <label class="small fw-bold text-muted mb-2">Sistem (Nilai): <span class="text-danger">*</span></label>
-            <input type="text" id="nilai-${q[0]}" class="form-control border-primary mb-3" value="${s.sistem_nilai || ''}" oninput="savSistemNilai('${q[0]}',this)" placeholder="contoh: Nilai satuan sebenarnya misal 123 Desa" ${dis}>
+            <input type="text" id="nilai-${q[0]}" class="form-control border-primary mb-3" value="${escAttr(s.sistem_nilai || '')}" oninput="savSistemNilai('${q[0]}',this)" placeholder="contoh: Nilai satuan sebenarnya misal 123 Desa" ${dis}>
 
             <label class="small fw-bold text-muted mb-2">Data Dokumen Pendukung: <span class="text-danger">*</span></label>
-            <input type="text" id="doc-${q[0]}" class="form-control border-primary mb-3" value="${s.nama_dokumen || ''}" oninput="savDocName('${q[0]}',this)" placeholder="Contoh: SK Tim Pelaksana, Laporan Kegiatan, dsb" ${dis}>
+            <input type="text" id="doc-${q[0]}" class="form-control border-primary mb-3" value="${escAttr(s.nama_dokumen || '')}" oninput="savDocName('${q[0]}',this)" placeholder="Contoh: SK Tim Pelaksana, Laporan Kegiatan, dsb" ${dis}>
 
             <label class="small fw-bold text-muted mb-2">Link Bukti Dukung (Google Drive): <span class="text-danger">*</span></label>
             <textarea id="link-${q[0]}" class="form-control border-primary mb-3 ${s.link && !/^https:\/\/(drive|docs)\.google\.com\/.*$/.test(s.link) ? 'is-invalid' : (s.link ? 'is-valid' : '')}" rows="2" oninput="savLinkVal('${q[0]}',this)" placeholder="https://drive.google.com/..." ${dis}>${s.link}</textarea>
@@ -509,7 +527,7 @@
             <div class="valid-feedback">Link valid!</div>
             
             <label class="small fw-bold text-muted mb-2 mt-3">Sumber Data & Tahun Data: <span class="text-danger">*</span></label>
-            <input type="text" id="sumber-${q[0]}" class="form-control border-primary mb-3" value="${s.sumber_data || ''}" oninput="savSumberData('${q[0]}',this)" placeholder="Contoh: BPS 2023, Laporan Dinas 2024" ${dis}>
+            <input type="text" id="sumber-${q[0]}" class="form-control border-primary mb-3" value="${escAttr(s.sumber_data || '')}" oninput="savSumberData('${q[0]}',this)" placeholder="Contoh: BPS 2023, Laporan Dinas 2024" ${dis}>
             
             <label class="small fw-bold text-muted mb-2">Penjelasan: <span class="text-danger">*</span></label>
             <textarea id="penjelasan-${q[0]}" class="form-control border-primary" rows="2" oninput="savPenjelasan('${q[0]}',this)" placeholder="Buat Narasi Singkat tentang Data Tersebut" ${dis}>${s.penjelasan || ''}</textarea>
@@ -881,7 +899,7 @@
   function populateOPDSelect() {
     let sel = document.getElementById('sel_opd_deadline');
     let h = '<option value="">-- Pilih OPD --</option>';
-    listMasterOPD.forEach(o => h += `<option value="${o}">${o}</option>`);
+    listMasterOPD.forEach(o => h += `<option value="${escAttr(o)}">${escHtml(o)}</option>`);
     sel.innerHTML = h;
   }
 
@@ -890,9 +908,9 @@
     let html = '';
     for (let opd in opdDeadlines) {
       html += `<tr>
-        <td>${opd}</td>
+        <td>${escHtml(opd)}</td>
         <td>${opdDeadlines[opd].replace('T', ' ')}</td>
-        <td class="text-center"><button class="btn btn-sm btn-danger" onclick="hapusDeadlineOPD('${opd}')"><i class="bi bi-trash"></i></button></td>
+        <td class="text-center"><button class="btn btn-sm btn-danger" onclick="hapusDeadlineOPD('${escAttr(opd)}')"><i class="bi bi-trash"></i></button></td>
       </tr>`;
     }
     if(html === '') html = '<tr><td colspan="3" class="text-center text-muted">Belum ada batas waktu khusus.</td></tr>';
@@ -965,7 +983,7 @@
                         d.tipe.includes("Tipe C") ? "bg-info text-dark" : "bg-secondary";
 
         bodyHtml += `<tr>
-          <td class="text-start fw-bold">${d.urusan}</td>
+          <td class="text-start fw-bold">${escHtml(d.urusan)}</td>
           <td>${d.faktor_umum}</td>
           <td>${d.faktor_teknis}</td>
           <td class="fw-bold fs-5 text-primary">${Number(d.total_akhir).toFixed(2)}${bonusBadge}</td>
@@ -975,7 +993,7 @@
           </td>
           <td>
             <button class="btn btn-sm btn-outline-info mb-1 w-100" onclick="lihatOpdLaporan(${index})"><i class="bi bi-eye"></i> Lihat OPD</button>
-            <button class="btn btn-sm btn-primary w-100" onclick="pilihFormatCetak('${d.urusan}')"><i class="bi bi-printer"></i> Cetak</button>
+            <button class="btn btn-sm btn-primary w-100" onclick="pilihFormatCetak('${escAttr(d.urusan)}')"><i class="bi bi-printer"></i> Cetak</button>
           </td>
         </tr>`;
       });
@@ -990,7 +1008,7 @@
       title: 'Informasi Hasil Penilaian',
       html: `
         <div class="text-start">
-          <p>Urusan: <b>${data.urusan}</b></p>
+          <p>Urusan: <b>${escHtml(data.urusan)}</b></p>
           <p>Total Skor: <b class="text-primary fs-4">${Number(data.total_akhir).toFixed(2)}</b></p>
           <hr>
           <p><b>Rekomendasi Wadah:</b></p>
@@ -999,7 +1017,7 @@
             <li>Wadah: <span class="badge bg-success">${data.tipe}</span></li>
           </ul>
           <hr>
-          <p>Milik OPD:<br><h5 class="text-primary">${data.opd}</h5></p>
+          <p>Milik OPD:<br><h5 class="text-primary">${escHtml(data.opd)}</h5></p>
         </div>
       `,
       icon: 'info'
@@ -1047,7 +1065,7 @@
     serverCall().withSuccessHandler(opds => {
       Swal.close();
       let h = '<option value="">-- Pilih OPD --</option>';
-      opds.forEach(o => h += `<option value="${o}">${o}</option>`);
+      opds.forEach(o => h += `<option value="${escAttr(o)}">${escHtml(o)}</option>`);
       document.getElementById('sel-reset-opd').innerHTML = h;
     }).getOpdSudahIsi();
   }
@@ -1111,16 +1129,16 @@
       document.getElementById('t-soal-body').innerHTML = globalMasterSoalData.map((q, idx) => `
         <tr>
           <td class="fw-bold">${q[0]}</td>
-          <td><input type="text" class="form-control form-control-sm" value="${q[1]}" onchange="updateSoalCall('${q[0]}', 1, this.value)"></td>
-          <td><input type="text" class="form-control form-control-sm" value="${q[2]}" onchange="updateSoalCall('${q[0]}', 2, this.value)"></td>
-          <td><textarea class="form-control form-control-sm" onchange="updateSoalCall('${q[0]}', 3, this.value)">${q[3]}</textarea></td>
-          <td><textarea class="form-control form-control-sm" onchange="updateSoalCall('${q[0]}', 4, this.value)">${q[4]||''}</textarea></td>
-          <td><input type="text" class="form-control form-control-sm" value="${q[8]||''}" onchange="updateSoalCall('${q[0]}', 8, this.value)"></td>
-          <td><input type="text" class="form-control form-control-sm" value="${q[9]||''}" onchange="updateSoalCall('${q[0]}', 9, this.value)"></td>
+          <td><input type="text" class="form-control form-control-sm" value="${escAttr(q[1])}" onchange="updateSoalCall('${q[0]}', 1, this.value)"></td>
+          <td><input type="text" class="form-control form-control-sm" value="${escAttr(q[2])}" onchange="updateSoalCall('${q[0]}', 2, this.value)"></td>
+          <td><textarea class="form-control form-control-sm" onchange="updateSoalCall('${q[0]}', 3, this.value)">${escHtml(q[3])}</textarea></td>
+          <td><textarea class="form-control form-control-sm" onchange="updateSoalCall('${q[0]}', 4, this.value)">${escHtml(q[4]||'')}</textarea></td>
+          <td><input type="text" class="form-control form-control-sm" value="${escAttr(q[8]||'')}" onchange="updateSoalCall('${q[0]}', 8, this.value)"></td>
+          <td><input type="text" class="form-control form-control-sm" value="${escAttr(q[9]||'')}" onchange="updateSoalCall('${q[0]}', 9, this.value)"></td>
           <td class="text-center text-nowrap">
             <button class="btn btn-sm btn-outline-success me-1" onclick="duplikatSoalAction(${idx})" title="Duplikat Soal"><i class="bi bi-copy"></i></button>
             <button class="btn btn-sm btn-outline-primary me-1" onclick="showModalEditSoal(${idx})" title="Edit Detail Soal"><i class="bi bi-pencil-square"></i></button>
-            <button class="btn btn-sm btn-outline-danger" onclick="hapusSoalAction('${q[0]}')" title="Hapus Soal"><i class="bi bi-trash"></i></button>
+            <button class="btn btn-sm btn-outline-danger" onclick="hapusSoalAction('${escAttr(q[0])}')" title="Hapus Soal"><i class="bi bi-trash"></i></button>
           </td>
         </tr>`).join('');
     }).getPertanyaan();
@@ -1173,10 +1191,10 @@
         
         h += `
         <tr>
-          <td class="fw-bold text-primary"><i class="bi bi-folder2-open me-2 text-secondary"></i>${s.nama}</td>
+          <td class="fw-bold text-primary"><i class="bi bi-folder2-open me-2 text-secondary"></i>${escHtml(s.nama)}</td>
           <td>${statusBadge}</td>
           <td class="text-end">
-            <button class="btn ${btnClass} btn-sm fw-bold px-3" onclick="muatValidasi('${s.nama.replace(/'/g, "\\'")}')"><i class="bi bi-pencil-square me-1"></i> BUKA VALIDASI</button>
+            <button class="btn ${btnClass} btn-sm fw-bold px-3" onclick="muatValidasi('${escAttr(s.nama)}')"><i class="bi bi-pencil-square me-1"></i> BUKA VALIDASI</button>
           </td>
         </tr>`;
       });
@@ -1308,7 +1326,7 @@
       const labels = ['A', 'B', 'C', 'D', 'E'];
 
       html += `<div class="q-card mb-4 border-primary">
-        <h5 class="fw-bold mb-2 text-primary-emphasis">${soal.pertanyaan}</h5>
+        <h5 class="fw-bold mb-2 text-primary-emphasis">${escHtml(soal.pertanyaan)}</h5>
         
         <!-- Info Kriteria Pilihan & Bobot Nilai -->
         <div class="border rounded-3 p-3 mb-4" style="background-color: #f0f7ff; border-color: #b8daff !important;">
@@ -1357,7 +1375,7 @@
             linkButtonsHtml = `<a href="${snapshotUrl}" target="_blank" class="btn btn-sm btn-outline-primary me-1">${btnLabel}</a>`;
           }
 
-          const safeOpd = (ans.opd || '').replace(/'/g, "\\'");
+          const safeOpd = escAttr(ans.opd);
           const formattedTs = formatTimestampDisplay(ans.timestamp);
 
           html += `
@@ -1365,7 +1383,7 @@
             <!-- Header Row: OPD & Buttons -->
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 pb-2 border-bottom">
               <div>
-                <h6 class="fw-bold text-primary mb-1"><i class="bi bi-building me-1"></i> ${ans.opd}</h6>
+                <h6 class="fw-bold text-primary mb-1"><i class="bi bi-building me-1"></i> ${escHtml(ans.opd)}</h6>
                 <span class="badge bg-light text-dark border"><i class="bi bi-clock-history text-primary me-1"></i> Submit OPD: ${formattedTs}</span>
               </div>
               <div class="d-flex align-items-center flex-wrap gap-1">
@@ -1379,10 +1397,10 @@
             <div class="row g-3 mb-3 align-items-stretch">
               <div class="col-md-8 col-lg-9">
                 <div class="small bg-light p-3 rounded-3 border h-100 d-flex flex-column justify-content-center">
-                  <div><b>Sistem (Nilai):</b> <span class="text-dark">${ans.sistem_nilai}</span></div>
-                  <div><b>Data Dokumen:</b> <span class="text-success">${ans.nama_dokumen}</span></div>
-                  <div><b>Sumber & Tahun Data:</b> <span class="text-dark">${ans.sumber_data}</span></div>
-                  <div><b>Penjelasan:</b> <span class="text-dark">${ans.penjelasan}</span></div>
+                  <div><b>Sistem (Nilai):</b> <span class="text-dark">${escHtml(ans.sistem_nilai)}</span></div>
+                  <div><b>Data Dokumen:</b> <span class="text-success">${escHtml(ans.nama_dokumen)}</span></div>
+                  <div><b>Sumber & Tahun Data:</b> <span class="text-dark">${escHtml(ans.sumber_data)}</span></div>
+                  <div><b>Penjelasan:</b> <span class="text-dark">${escHtml(ans.penjelasan)}</span></div>
                 </div>
               </div>
               
@@ -1411,7 +1429,7 @@
               </div>
               <div class="col-md-9">
                 <label class="small fw-bold">Catatan Evaluator</label>
-                <input type="text" class="form-control form-control-sm" value="${ans.catatan||''}" oninput="vData[${i}].jawaban_opd[${j}].catatan=this.value">
+                <input type="text" class="form-control form-control-sm" value="${escAttr(ans.catatan||'')}" oninput="vData[${i}].jawaban_opd[${j}].catatan=this.value">
               </div>
             </div>
           </div>`;
@@ -1554,7 +1572,7 @@
       let h = '';
       if(s.list_opd.length > 0) {
         s.list_opd.forEach((opd, i) => {
-          h += `<tr><td>${i+1}</td><td class="fw-bold text-primary">${opd}</td></tr>`;
+          h += `<tr><td>${i+1}</td><td class="fw-bold text-primary">${escHtml(opd)}</td></tr>`;
         });
       } else {
         h = '<tr><td colspan="2" class="text-center text-muted">Belum ada data</td></tr>';
@@ -1588,7 +1606,7 @@
       if (tbody) {
         tbody.innerHTML = data.map((u, i) => `
           <tr>
-            <td class="fw-bold">${u[0]}</td>
+            <td class="fw-bold">${escHtml(u[0])}</td>
             <td>${u[1]}</td>
             <td><span class="badge ${u[2]==='Admin'?'bg-danger':u[2]==='Evaluator'?'bg-primary':'bg-success'}">${u[2]}</span></td>
             <td>${u[3] || '-'}</td>
@@ -1624,7 +1642,7 @@
     
     let opdOptions = `<option value="-">`;
     listMasterOPD.forEach(opd => {
-      opdOptions += `<option value="${opd}">`;
+      opdOptions += `<option value="${escAttr(opd)}">`;
     });
 
     Swal.fire({
@@ -1632,7 +1650,7 @@
       html: `
         <div class="text-start">
           <div class="mb-2"><label class="form-label small fw-bold">Username</label>
-            <input id="swal-u" class="form-control" value="${u.username}"></div>
+            <input id="swal-u" class="form-control" value="${escAttr(u.username)}"></div>
           <div class="mb-2"><label class="form-label small fw-bold">Password</label>
             <input id="swal-p" type="password" class="form-control" value="${u.password}" placeholder="${oldU ? 'Kosongkan jika tidak diubah' : ''}"></div>
           <div class="mb-2"><label class="form-label small fw-bold">Role</label>
@@ -1642,7 +1660,7 @@
               <option value="Admin" ${u.role==='Admin'?'selected':''}>Admin</option>
             </select></div>
           <div class="mb-2"><label class="form-label small fw-bold">Nama OPD</label>
-            <input list="opd-list" id="swal-o" class="form-control" value="${u.opd}" placeholder="Ketik inisial OPD...">
+            <input list="opd-list" id="swal-o" class="form-control" value="${escAttr(u.opd)}" placeholder="Ketik inisial OPD...">
             <datalist id="opd-list">
               ${opdOptions}
             </datalist>

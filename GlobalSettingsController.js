@@ -33,9 +33,13 @@ function saveFaktorUmum(token, data) {
 
 function getDeadlineSettings() {
   const props = PropertiesService.getScriptProperties();
+  const tz = Session.getScriptTimeZone();
+  const deadlineGlobal = props.getProperty('deadline_global') || '';
   return {
-    deadline_global: props.getProperty('deadline_global') || '',
-    deadline_opd: props.getProperty('deadline_opd') || '{}'
+    deadline_global: deadlineGlobal,
+    deadline_opd: props.getProperty('deadline_opd') || '{}',
+    // Timestamp UTC (ms) untuk perhitungan countdown di client yang akurat lintas timezone
+    deadline_global_utc: deadlineGlobal ? new Date(deadlineGlobal).getTime() : 0
   };
 }
 
