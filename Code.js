@@ -40,3 +40,11 @@ function onOpen() {
     Logger.log("Bukan dijalankan dari konteks Spreadsheet: " + e.message);
   }
 }
+
+// Jalankan SEKALI untuk menyimpan Firebase secret ke Script Properties,
+// lalu hapus fungsi ini dari editor.
+function setSecretSekali() {
+  PropertiesService.getScriptProperties()
+    .setProperty('FIREBASE_SECRET', 'NRsngWcl1TKI6LaLDYWiZQw86jIXGxyk7G1yRfWy');
+  Logger.log("Secret tersimpan: " + (PropertiesService.getScriptProperties().getProperty('FIREBASE_SECRET') ? "OK" : "GAGAL"));
+}
