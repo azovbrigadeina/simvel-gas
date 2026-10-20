@@ -259,10 +259,13 @@ function simpanSemuaJawaban(token, payload) {
   const ts = new Date().toISOString();
   const opdEscaped = Firebase.escapeKey(payload.opd);
   const existingJawaban = Firebase.get(`jawaban/${opdEscaped}`) || {};
+  const validSoalIds = Firebase.getCachedMasterPertanyaan() || {};
   const updates = {};
   (payload.jawaban || []).forEach(item => {
     if (!item || item.id === undefined || item.id === null) return;
     const escapedId = Firebase.escapeKey(item.id.toString());
+    // Abaikan jawaban untuk soal yang sudah dihapus dari master pertanyaan
+    if (!validSoalIds[escapedId]) return;
     const prevItem = existingJawaban[escapedId] || {};
     const itemLink = String(item.link || "").trim();
     let linkArsip = prevItem.link_arsip || "";
@@ -567,7 +570,8 @@ function resnapshotBySubKategori(token, subKategori) {
 
   try {
     const data = _loadSharedData();
-    const soalTerkait = data.ds.filter(s => (s[2] ? s[2].toString().trim() : "Umum") === subKategori);
+    const targetNorm = (subKategori || "").toString().trim().toLowerCase();
+    const soalTerkait = data.ds.filter(s => (s[2] ? s[2].toString().trim().toLowerCase() : "umum") === targetNorm);
     const idSoalSet = new Set(soalTerkait.map(s => s[0].toString()));
 
     const opdSet = new Set();
@@ -623,7 +627,17 @@ function simpanDraftJawaban(token, payload) {
     throw new Error("Akses ditolak: Anda hanya dapat menyimpan draf untuk OPD Anda sendiri.");
   }
   if (!payload || !payload.opd) return { status: "error", message: "Nama OPD tidak valid" };
-  
+
+  // Cek deadline juga untuk draf
+  const propsD = PropertiesService.getScriptProperties();
+  const dGlobalD = propsD.getProperty('deadline_global') || '';
+  let opdDeadlinesD = {};
+  try { opdDeadlinesD = JSON.parse(propsD.getProperty('deadline_opd') || '{}'); } catch(e) {}
+  const deadlineStrD = opdDeadlinesD[payload.opd] || dGlobalD;
+  if (deadlineStrD && new Date().getTime() > new Date(deadlineStrD).getTime()) {
+    throw new Error("Gagal menyimpan draf: Waktu pengisian untuk OPD Anda telah berakhir.");
+  }
+
   const opdEscaped = Firebase.escapeKey(payload.opd);
   const submitted = Firebase.get(`jawaban/${opdEscaped}`);
   if (submitted && Object.keys(submitted).length > 0) {

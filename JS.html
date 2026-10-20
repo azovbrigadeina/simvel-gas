@@ -1790,11 +1790,13 @@
           subKategori: q[2] || "",
           pertanyaan: q[3] || "",
           indikator: q[4] || "",
+          dataDukung: q[5] || "",
+          penjelasan: q[6] || "",
+          referensi: q[7] || "",
           bobot: q[8] || "100|80|60|40|20",
           targetOPD: q[9] || ""
         };
 
-        Swal.showLoading();
         serverCall().withSuccessHandler(r => {
           Swal.close();
           Swal.fire('Berhasil!', `Soal berhasil diduplikasi menjadi <strong>${newId}</strong>!`, 'success');
