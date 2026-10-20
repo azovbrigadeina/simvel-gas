@@ -88,6 +88,8 @@
     vData = [];
     try {
       localStorage.removeItem('simvel_session');
+      localStorage.removeItem('simvel_page_eval');
+      localStorage.removeItem('simvel_page_resp');
     } catch(e) {}
     
     // Sembunyikan panel evaluator, responden & sidebar
@@ -176,9 +178,27 @@
       } else {
         document.getElementById('sidebar-title').innerText = "EVALUATOR";
       }
+
+      let lastPage = 'dash';
+      try {
+        const savedPage = localStorage.getItem('simvel_page_eval');
+        if (savedPage && ['dash','soal','val','user','laporan','pengaturan','reset'].indexOf(savedPage) !== -1) {
+          if (savedPage === 'user' && res.role !== "Admin") {
+            lastPage = 'dash';
+          } else {
+            lastPage = savedPage;
+          }
+        } else {
+          try { localStorage.removeItem('simvel_page_eval'); } catch(e) {}
+        }
+      } catch(e) {}
+
       updateLoadingStatus('Memuat dashboard monitoring...');
       loadStats();
       setTimeout(() => hideLoadingScreen(), 1200);
+      if (lastPage !== 'dash') {
+        setTimeout(() => showV(lastPage), 50);
+      }
     }
   }
 
@@ -305,7 +325,16 @@
             }
             grp[key].push(r);
           });
-          showS(0);
+          let lastIdx = 0;
+          try {
+            const savedIdx = parseInt(localStorage.getItem('simvel_page_resp'), 10);
+            if (!isNaN(savedIdx) && savedIdx >= 0 && savedIdx < cats.length) {
+              lastIdx = savedIdx;
+            } else {
+              try { localStorage.removeItem('simvel_page_resp'); } catch(e) {}
+            }
+          } catch(e) {}
+          showS(lastIdx);
           hideLoadingScreen();
 
           if (isOPDSudahKirim) {
@@ -396,6 +425,7 @@
 
   function showS(idx) {
     if (idx < 0 || idx >= cats.length) return;
+    try { localStorage.setItem('simvel_page_resp', String(idx)); } catch(e) {}
     const key = cats[idx], qs = grp[key], cont = document.getElementById('f-cont');
     const katInfo = parentCat[key];
     
@@ -772,6 +802,7 @@
   }
 
   function showV(v) {
+    try { localStorage.setItem('simvel_page_eval', v); } catch(e) {}
     ['dash','soal','val','user','laporan','pengaturan','reset'].forEach(i => {
       const vEl = document.getElementById('v-'+i);
       const lEl = document.getElementById('l-'+i);
