@@ -13,7 +13,8 @@ function getFaktorUmum() {
   };
 }
 
-function saveFaktorUmum(data) {
+function saveFaktorUmum(token, data) {
+  requireRole(token, ["Admin"]);
   // OPTIMASI: Batch setProperties — 1 API call daripada 9 terpisah
   const props = PropertiesService.getScriptProperties();
   props.setProperties({
@@ -38,7 +39,8 @@ function getDeadlineSettings() {
   };
 }
 
-function saveDeadlineSettings(data) {
+function saveDeadlineSettings(token, data) {
+  requireRole(token, ["Admin"]);
   const props = PropertiesService.getScriptProperties();
   props.setProperties({
     'deadline_global': data.deadline_global,
@@ -51,8 +53,9 @@ function saveDeadlineSettings(data) {
  * OPTIMASI: Fungsi gabungan untuk menyimpan faktor umum + deadline
  * dalam satu server call (menggantikan 2 call sequential dari client).
  */
-function saveAllSettings(data, deadlineData) {
-  saveFaktorUmum(data);
-  saveDeadlineSettings(deadlineData);
+function saveAllSettings(token, data, deadlineData) {
+  requireRole(token, ["Admin"]);
+  saveFaktorUmum(token, data);
+  saveDeadlineSettings(token, deadlineData);
   return "Semua pengaturan berhasil disimpan";
 }

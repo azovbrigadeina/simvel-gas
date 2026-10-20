@@ -1,23 +1,26 @@
-function getUsersData() {
+function getUsersData(token) {
+  requireRole(token, ["Admin"]);
   const users = Firebase.get("users") || {};
   return Object.entries(users).map(([u, v]) => [
-    Firebase.unescapeKey(u), 
-    v.password !== undefined ? v.password : (v.pass || ""), 
-    v.role || "", 
+    Firebase.unescapeKey(u),
+    "", // password (hash) tidak pernah dikembalikan ke client
+    v.role || "",
     v.nama_opd || ""
   ]);
 }
 
-function tambahUser(dataUser) {
+function tambahUser(token, dataUser) {
+  requireRole(token, ["Admin"]);
   try {
     const u = Firebase.escapeKey((dataUser[0] || "").toString().trim());
     if (!u) return { status: "error", message: "Username tidak boleh kosong!" };
     if (Firebase.get(`users/${u}`)) return { status: "error", message: "Username sudah digunakan!" };
-    Firebase.put(`users/${u}`, { 
-      password: dataUser[1] !== undefined ? dataUser[1].toString() : "", 
-      role: dataUser[2] || "Responden", 
-      nama_opd: dataUser[3] || "-" 
-    });
+    const newUser = {
+      role: dataUser[2] || "Responden",
+      nama_opd: dataUser[3] || "-"
+    };
+    _storeUserPassword(newUser, (dataUser[1] !== undefined ? dataUser[1].toString() : ""));
+    Firebase.put(`users/${u}`, newUser);
     Firebase.clearMasterOPDCache();
     return { status: "success", message: "User berhasil ditambahkan!" };
   } catch (err) {
@@ -26,7 +29,8 @@ function tambahUser(dataUser) {
   }
 }
 
-function updateUser(oldUsername, dataUser) {
+function updateUser(token, oldUsername, dataUser) {
+  const sess = requireRole(token, ["Admin"]);
   try {
     const oldU = Firebase.escapeKey((oldUsername || "").toString().trim());
     const newU = Firebase.escapeKey((dataUser[0] || "").toString().trim());
@@ -38,11 +42,20 @@ function updateUser(oldUsername, dataUser) {
     } else {
       if (!Firebase.get(`users/${oldU}`)) return { status: "error", message: "User tidak ditemukan!" };
     }
-    Firebase.put(`users/${newU}`, { 
-      password: dataUser[1] !== undefined ? dataUser[1].toString() : "", 
-      role: dataUser[2] || "Responden", 
-      nama_opd: dataUser[3] || "-" 
-    });
+    const existingData = Firebase.get(`users/${oldU}`) || {};
+    const updatedUser = {
+      role: dataUser[2] || "Responden",
+      nama_opd: dataUser[3] || "-"
+    };
+    const newPass = (dataUser[1] !== undefined ? dataUser[1].toString() : "");
+    if (newPass !== "") {
+      _storeUserPassword(updatedUser, newPass);
+    } else if (existingData.password_hash) {
+      // Password tidak diubah — pertahankan hash lama
+      updatedUser.password_hash = existingData.password_hash;
+      updatedUser.salt = existingData.salt;
+    }
+    Firebase.put(`users/${newU}`, updatedUser);
     Firebase.clearMasterOPDCache();
     return { status: "success", message: "User berhasil diperbarui!" };
   } catch (err) {
@@ -51,8 +64,10 @@ function updateUser(oldUsername, dataUser) {
   }
 }
 
-function hapusUser(username) {
+function hapusUser(token, username) {
+  const sess = requireRole(token, ["Admin"]);
   try {
+    if (username === sess.username) return { status: "error", message: "Tidak dapat menghapus diri sendiri!" };
     const u = Firebase.escapeKey((username || "").toString().trim());
     if (!u) return { status: "error", message: "Username tidak valid!" };
     if (!Firebase.get(`users/${u}`)) return { status: "error", message: "User tidak ditemukan!" };

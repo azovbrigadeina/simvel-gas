@@ -2,9 +2,12 @@ const SPREADSHEET_ID = '124y03dq0oSyC576x0oOWh8y97q40Qy6l4XuzqXCtO_o';
 
 const SETTINGS = {
   USE_FIREBASE: true,
-  FIREBASE_DB_URL: 'https://simvel-9291b-default-rtdb.asia-southeast1.firebasedatabase.app',
-  FIREBASE_SECRET: 'NRsngWcl1TKI6LaLDYWiZQw86jIXGxyk7G1yRfWy'
+  FIREBASE_DB_URL: 'https://simvel-9291b-default-rtdb.asia-southeast1.firebasedatabase.app'
 };
+
+function getFirebaseSecret() {
+  return PropertiesService.getScriptProperties().getProperty('FIREBASE_SECRET') || '';
+}
 
 function getSS() { 
   return SpreadsheetApp.openById(SPREADSHEET_ID); 

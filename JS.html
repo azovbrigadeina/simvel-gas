@@ -81,6 +81,9 @@
 
   function handleLogout() {
     stopIdleChecker();
+    if (sess && sess.token) {
+      try { google.script.run.logout(sess.token); } catch(e) {}
+    }
     sess = {};
     grp = {};
     cats = [];
@@ -212,7 +215,7 @@
     }
 
     Swal.showLoading();
-    google.script.run.withSuccessHandler(res => {
+    serverCall().withSuccessHandler(res => {
       Swal.close();
       if(res.status === "success") {
         applySession(res);
@@ -259,6 +262,20 @@
     }
   });
 
+  function serverCall() {
+    const token = (sess && sess.token) ? sess.token : "";
+    return google.script.run
+      .withFailureHandler(err => {
+        const msg = (err && err.message) ? err.message : String(err);
+        if (msg.indexOf('Sesi tidak valid') !== -1) {
+          handleLogout();
+          Swal.fire('Sesi Berakhir', 'Sesi Anda telah berakhir. Silakan login ulang.', 'warning');
+        } else {
+          Swal.fire('Error', msg, 'error');
+        }
+      });
+  }
+
   let parentCat = {};
 
   let isDeadlinePassed = false;
@@ -270,7 +287,7 @@
     grp = {}; cats = []; parentCat = {}; isOPDSudahKirim = false;
     
     // Check deadline first
-    google.script.run.withSuccessHandler(res => {
+    serverCall().withSuccessHandler(res => {
       let deadlineStr = "";
       try {
         const opdDeadlines = JSON.parse(res.deadline_opd || '{}');
@@ -293,7 +310,7 @@
         if (dStr) localDraft = JSON.parse(dStr);
       } catch(e) {}
 
-      google.script.run.withSuccessHandler(resDraft => {
+      serverCall().withSuccessHandler(resDraft => {
         let serverDraft = {};
         if (resDraft && typeof resDraft === 'object' && resDraft.hasOwnProperty('isSubmitted')) {
           serverDraft = resDraft.draft || {};
@@ -312,7 +329,7 @@
 
         // Fetch Pertanyaan
         updateLoadingStatus('Menyusun formulir pengisian...');
-        google.script.run.withSuccessHandler(data => {
+        serverCall().withSuccessHandler(data => {
           data.forEach(r => {
             let ut = r[1] ? r[1].trim() : "Lainnya";
             let sub = r[2] ? r[2].trim() : "Umum";
@@ -618,7 +635,7 @@
       didOpen: () => Swal.showLoading()
     });
 
-    google.script.run.withSuccessHandler(res => {
+    serverCall().withSuccessHandler(res => {
       Swal.close();
       const Toast = Swal.mixin({
         toast: true,
@@ -634,7 +651,7 @@
       });
     }).withFailureHandler(err => {
       Swal.fire('Gagal', 'Gagal menyimpan draf: ' + (err.message || err), 'error');
-    }).simpanDraftJawaban({ opd: sess.nama_opd, jawaban: payloadJawaban });
+    }).simpanDraftJawaban(sess.token, { opd: sess.nama_opd, jawaban: payloadJawaban });
   }
 
   function initAnsObject(id) {
@@ -770,7 +787,7 @@
       showConfirmButton: false
     });
 
-    google.script.run.withSuccessHandler(() => {
+    serverCall().withSuccessHandler(() => {
       try {
         localStorage.removeItem('simvel_draft_' + sess.nama_opd);
       } catch(e) {}
@@ -798,7 +815,7 @@
         icon: 'error',
         confirmButtonText: 'Coba Lagi'
       });
-    }).simpanSemuaJawaban({opd: sess.nama_opd, jawaban: Object.values(ans)});
+    }).simpanSemuaJawaban(sess.token, {opd: sess.nama_opd, jawaban: Object.values(ans)});
   }
 
   function showV(v) {
@@ -824,7 +841,7 @@
   // Pengaturan Faktor Umum
   function loadPengaturan() {
     Swal.showLoading();
-    google.script.run.withSuccessHandler(res => {
+    serverCall().withSuccessHandler(res => {
       Swal.close();
       document.getElementById('fu_1_name').value = res.fu_1_name;
       document.getElementById('fu_1_val').value = res.fu_1_val;
@@ -838,7 +855,7 @@
     }).getFaktorUmum();
 
     // Load Deadline
-    google.script.run.withSuccessHandler(res => {
+    serverCall().withSuccessHandler(res => {
       document.getElementById('deadline_global').value = res.deadline_global || '';
       try {
         opdDeadlines = JSON.parse(res.deadline_opd || '{}');
@@ -850,7 +867,7 @@
 
     // Load Master OPD for select
     if (listMasterOPD.length === 0) {
-      google.script.run.withSuccessHandler(opdList => {
+      serverCall().withSuccessHandler(opdList => {
         listMasterOPD = opdList;
         populateOPDSelect();
       }).getMasterOPDList();
@@ -916,16 +933,16 @@
     
     // OPTIMASI: 1 server call gabungan (dulu 2 sequential)
     Swal.showLoading();
-    google.script.run.withSuccessHandler(res => {
+    serverCall().withSuccessHandler(res => {
       Swal.fire('Sukses', res, 'success');
-    }).saveAllSettings(data, deadlineData);
+    }).saveAllSettings(sess.token, data, deadlineData);
   }
 
   // Laporan Penilaian
   let dataLaporan = [];
   function loadLaporan() {
     Swal.showLoading();
-    google.script.run.withSuccessHandler(res => {
+    serverCall().withSuccessHandler(res => {
       Swal.close();
       dataLaporan = res;
       
@@ -1016,18 +1033,18 @@
       didOpen: () => Swal.showLoading()
     });
     
-    google.script.run.withSuccessHandler(url => {
+    serverCall().withSuccessHandler(url => {
       Swal.close();
       window.open(url, '_blank');
     }).withFailureHandler(err => {
       Swal.fire('Gagal', err.message, 'error');
-    }).buatLaporanUrusan(urusan, format);
+    }).buatLaporanUrusan(sess.token, urusan, format);
   }
 
   // Reset Data Script
   function loadResetMenu() {
     Swal.showLoading();
-    google.script.run.withSuccessHandler(opds => {
+    serverCall().withSuccessHandler(opds => {
       Swal.close();
       let h = '<option value="">-- Pilih OPD --</option>';
       opds.forEach(o => h += `<option value="${o}">${o}</option>`);
@@ -1049,10 +1066,10 @@
     }).then(res => {
       if(res.isConfirmed) {
         Swal.showLoading();
-        google.script.run.withSuccessHandler(msg => {
+        serverCall().withSuccessHandler(msg => {
           Swal.fire('Berhasil', msg, 'success');
           loadResetMenu();
-        }).resetValidasiOPD(opd);
+        }).resetValidasiOPD(sess.token, opd);
       }
     });
   }
@@ -1071,29 +1088,35 @@
     }).then(res => {
       if(res.isConfirmed) {
         Swal.showLoading();
-        google.script.run.withSuccessHandler(msg => {
+        serverCall().withSuccessHandler(msg => {
           Swal.fire('Berhasil', msg, 'success');
           loadResetMenu();
-        }).resetJawabanOPD(opd);
+        }).resetJawabanOPD(sess.token, opd);
       }
     });
   }
 
   let globalMasterSoalData = [];
+  function updateSoalCall(id, kolomIdx, nilaiBaru) {
+    google.script.run.withFailureHandler(err => {
+      Swal.fire('Gagal', err.message || err, 'error');
+    }).updateSoal(sess.token, id, kolomIdx, nilaiBaru);
+  }
+
   function loadSoal() {
     Swal.showLoading();
-    google.script.run.withSuccessHandler(data => {
+    serverCall().withSuccessHandler(data => {
       Swal.close();
       globalMasterSoalData = data || [];
       document.getElementById('t-soal-body').innerHTML = globalMasterSoalData.map((q, idx) => `
         <tr>
           <td class="fw-bold">${q[0]}</td>
-          <td><input type="text" class="form-control form-control-sm" value="${q[1]}" onchange="google.script.run.updateSoal('${q[0]}', 1, this.value)"></td>
-          <td><input type="text" class="form-control form-control-sm" value="${q[2]}" onchange="google.script.run.updateSoal('${q[0]}', 2, this.value)"></td>
-          <td><textarea class="form-control form-control-sm" onchange="google.script.run.updateSoal('${q[0]}', 3, this.value)">${q[3]}</textarea></td>
-          <td><textarea class="form-control form-control-sm" onchange="google.script.run.updateSoal('${q[0]}', 4, this.value)">${q[4]||''}</textarea></td>
-          <td><input type="text" class="form-control form-control-sm" value="${q[8]||''}" onchange="google.script.run.updateSoal('${q[0]}', 8, this.value)"></td>
-          <td><input type="text" class="form-control form-control-sm" value="${q[9]||''}" onchange="google.script.run.updateSoal('${q[0]}', 9, this.value)"></td>
+          <td><input type="text" class="form-control form-control-sm" value="${q[1]}" onchange="updateSoalCall('${q[0]}', 1, this.value)"></td>
+          <td><input type="text" class="form-control form-control-sm" value="${q[2]}" onchange="updateSoalCall('${q[0]}', 2, this.value)"></td>
+          <td><textarea class="form-control form-control-sm" onchange="updateSoalCall('${q[0]}', 3, this.value)">${q[3]}</textarea></td>
+          <td><textarea class="form-control form-control-sm" onchange="updateSoalCall('${q[0]}', 4, this.value)">${q[4]||''}</textarea></td>
+          <td><input type="text" class="form-control form-control-sm" value="${q[8]||''}" onchange="updateSoalCall('${q[0]}', 8, this.value)"></td>
+          <td><input type="text" class="form-control form-control-sm" value="${q[9]||''}" onchange="updateSoalCall('${q[0]}', 9, this.value)"></td>
           <td class="text-center text-nowrap">
             <button class="btn btn-sm btn-outline-success me-1" onclick="duplikatSoalAction(${idx})" title="Duplikat Soal"><i class="bi bi-copy"></i></button>
             <button class="btn btn-sm btn-outline-primary me-1" onclick="showModalEditSoal(${idx})" title="Edit Detail Soal"><i class="bi bi-pencil-square"></i></button>
@@ -1124,7 +1147,7 @@
     if (searchInput) searchInput.value = '';
 
     Swal.showLoading();
-    google.script.run.withSuccessHandler(res => {
+    serverCall().withSuccessHandler(res => {
       Swal.close();
       
       // Urutkan data: 1. Selesai, 2. Progress Validasi, 3. Belum ada data
@@ -1195,7 +1218,7 @@
       allowOutsideClick: false,
       didOpen: () => Swal.showLoading()
     });
-    google.script.run.withSuccessHandler(res => {
+    serverCall().withSuccessHandler(res => {
       Swal.close();
       if (res && res.success) {
         Swal.fire('Berhasil', res.message, 'success');
@@ -1203,7 +1226,7 @@
       } else {
         Swal.fire('Error', res ? res.message : 'Gagal memproses snapshot', 'error');
       }
-    }).resnapshotBySubKategori(currentActiveSubKat);
+    }).resnapshotBySubKategori(sess.token, currentActiveSubKat);
   }
 
   function doRefreshSnapshotSingleOPD(opdName) {
@@ -1214,7 +1237,7 @@
       allowOutsideClick: false,
       didOpen: () => Swal.showLoading()
     });
-    google.script.run.withSuccessHandler(res => {
+    serverCall().withSuccessHandler(res => {
       Swal.close();
       if (res && res.success) {
         Swal.fire('Berhasil', res.message, 'success');
@@ -1222,7 +1245,7 @@
       } else {
         Swal.fire('Error', res ? res.message : 'Gagal memproses snapshot', 'error');
       }
-    }).resnapshotAllByOPD(opdName);
+    }).resnapshotAllByOPD(sess.token, opdName);
   }
 
   function renderKriteriaBobotBox(indikatorText, bobotStr) {
@@ -1414,7 +1437,7 @@
     if (switchEl) switchEl.checked = showLinkAsli;
 
     Swal.showLoading();
-    google.script.run.withSuccessHandler(data => {
+    serverCall().withSuccessHandler(data => {
       Swal.close();
       vData = data; 
       document.getElementById('btn-save-val').classList.remove('hidden');
@@ -1510,16 +1533,16 @@
     });
     
     Swal.showLoading();
-    google.script.run.withSuccessHandler(() => {
+    serverCall().withSuccessHandler(() => {
       Swal.fire('Berhasil','Data verifikasi tersimpan','success');
       loadSubKat();
     }).withFailureHandler(err => {
       Swal.fire('Error', 'Gagal menyimpan validasi: ' + (err.message || err), 'error');
-    }).simpanVerifikasi({ items: itemsToSave });
+    }).simpanVerifikasi(sess.token, { items: itemsToSave });
   }
 
   function loadStats() { 
-    google.script.run.withSuccessHandler(s => { 
+    serverCall().withSuccessHandler(s => { 
       document.getElementById('s-tot').innerText = s.total; 
       document.getElementById('s-urusan-sudah').innerText = s.urusan_sudah; 
       document.getElementById('s-ta').innerText = s.tipeA;
@@ -1546,7 +1569,7 @@
   function loadUsers(silent = false) {
     if (!silent) Swal.showLoading();
     if (listMasterOPD.length === 0) {
-      google.script.run.withSuccessHandler(opdList => {
+      serverCall().withSuccessHandler(opdList => {
         listMasterOPD = opdList;
         fetchUsers(silent);
       }).withFailureHandler(err => {
@@ -1558,7 +1581,7 @@
   }
   
   function fetchUsers(silent = false) {
-    google.script.run.withSuccessHandler(data => {
+    serverCall().withSuccessHandler(data => {
       usersData = data;
       if (!silent) Swal.close();
       const tbody = document.getElementById('t-user-body');
@@ -1577,7 +1600,7 @@
       }
     }).withFailureHandler(err => {
       if (!silent) Swal.fire('Error', 'Gagal mengambil data user: ' + (err.message || err), 'error');
-    }).getUsersData();
+    }).getUsersData(sess.token);
   }
 
   function formUserByIndex(idx) {
@@ -1596,7 +1619,7 @@
     let u = { username: '', password: '', role: 'Responden', opd: '' };
     if(oldU) {
       const found = usersData.find(x => x[0] === oldU);
-      if(found) u = { username: found[0], password: found[1], role: found[2], opd: found[3] };
+      if(found) u = { username: found[0], password: '', role: found[2], opd: found[3] };
     }
     
     let opdOptions = `<option value="-">`;
@@ -1611,7 +1634,7 @@
           <div class="mb-2"><label class="form-label small fw-bold">Username</label>
             <input id="swal-u" class="form-control" value="${u.username}"></div>
           <div class="mb-2"><label class="form-label small fw-bold">Password</label>
-            <input id="swal-p" class="form-control" value="${u.password}"></div>
+            <input id="swal-p" type="password" class="form-control" value="${u.password}" placeholder="${oldU ? 'Kosongkan jika tidak diubah' : ''}"></div>
           <div class="mb-2"><label class="form-label small fw-bold">Role</label>
             <select id="swal-r" class="form-select">
               <option value="Responden" ${u.role==='Responden'?'selected':''}>Responden</option>
@@ -1633,7 +1656,7 @@
         const pVal = (document.getElementById('swal-p').value || '').trim();
         const rVal = document.getElementById('swal-r').value;
         const oVal = (document.getElementById('swal-o').value || '').trim() || '-';
-        if (!uVal || !pVal) {
+        if (!uVal || (!oldU && !pVal)) {
           Swal.showValidationMessage('Username & Password wajib diisi!');
           return false;
         }
@@ -1643,7 +1666,7 @@
       if(res.isConfirmed && res.value) {
         Swal.showLoading();
         if(oldU) {
-          google.script.run
+          serverCall()
             .withSuccessHandler(r => {
               if (r && r.status === 'success') {
                 Swal.fire({ icon: 'success', title: 'Sukses', text: r.message, timer: 1500, showConfirmButton: false });
@@ -1655,9 +1678,9 @@
             .withFailureHandler(err => {
               Swal.fire('Error', 'Gagal memproses ke server: ' + (err.message || err), 'error');
             })
-            .updateUser(oldU, res.value);
+            .updateUser(sess.token, oldU, res.value);
         } else {
-          google.script.run
+          serverCall()
             .withSuccessHandler(r => {
               if (r && r.status === 'success') {
                 Swal.fire({ icon: 'success', title: 'Sukses', text: r.message, timer: 1500, showConfirmButton: false });
@@ -1669,7 +1692,7 @@
             .withFailureHandler(err => {
               Swal.fire('Error', 'Gagal memproses ke server: ' + (err.message || err), 'error');
             })
-            .tambahUser(res.value);
+            .tambahUser(sess.token, res.value);
         }
       }
     });
@@ -1681,7 +1704,7 @@
     .then(r => {
       if(r.isConfirmed) {
         Swal.showLoading();
-        google.script.run
+        serverCall()
           .withSuccessHandler(res => {
             if (res && res.status === 'success') {
               Swal.fire({ icon: 'success', title: 'Terhapus', text: res.message, timer: 1500, showConfirmButton: false });
@@ -1693,7 +1716,7 @@
           .withFailureHandler(err => {
             Swal.fire('Error', 'Gagal menghapus user: ' + (err.message || err), 'error');
           })
-          .hapusUser(uname);
+          .hapusUser(sess.token, uname);
       }
     });
   }
@@ -1772,13 +1795,13 @@
         };
 
         Swal.showLoading();
-        google.script.run.withSuccessHandler(r => {
+        serverCall().withSuccessHandler(r => {
           Swal.close();
           Swal.fire('Berhasil!', `Soal berhasil diduplikasi menjadi <strong>${newId}</strong>!`, 'success');
           loadSoal();
         }).withFailureHandler(err => {
           Swal.fire('Gagal', (err && err.message) ? err.message : 'Gagal menduplikasi soal', 'error');
-        }).tambahSoal(payload);
+        }).tambahSoal(sess.token, payload);
 
       } else if (res.isDenied) {
         const inputId = document.getElementById('swal-dup-id') ? document.getElementById('swal-dup-id').value.trim() : nextId;
@@ -1852,7 +1875,7 @@
     };
 
     Swal.showLoading();
-    google.script.run.withSuccessHandler(res => {
+    serverCall().withSuccessHandler(res => {
       Swal.close();
       const mEl = document.getElementById('modalTambahSoal');
       if (mEl) {
@@ -1863,7 +1886,7 @@
       loadSoal();
     }).withFailureHandler(err => {
       Swal.fire('Gagal', (err && err.message) ? err.message : 'Gagal menyimpan soal baru', 'error');
-    }).tambahSoal(payload);
+    }).tambahSoal(sess.token, payload);
   }
 
   function showModalEditSoal(idx) {
@@ -1910,7 +1933,7 @@
     };
 
     Swal.showLoading();
-    google.script.run.withSuccessHandler(res => {
+    serverCall().withSuccessHandler(res => {
       Swal.close();
       const mEl = document.getElementById('modalEditSoal');
       if (mEl) {
@@ -1921,7 +1944,7 @@
       loadSoal();
     }).withFailureHandler(err => {
       Swal.fire('Gagal', (err && err.message) ? err.message : 'Gagal menyimpan perubahan', 'error');
-    }).tambahSoal(payload);
+    }).tambahSoal(sess.token, payload);
   }
 
   function hapusSoalAction(idSoal) {
@@ -1936,7 +1959,7 @@
     }).then(r => {
       if (r.isConfirmed) {
         Swal.showLoading();
-        google.script.run
+        serverCall()
           .withSuccessHandler(res => {
             if (res && res.status === 'success') {
               Swal.fire('Terhapus', res.message || 'Soal berhasil dihapus!', 'success');
@@ -1948,7 +1971,7 @@
           .withFailureHandler(err => {
             Swal.fire('Error', 'Gagal menghapus soal: ' + (err.message || err), 'error');
           })
-          .hapusSoal(idSoal);
+          .hapusSoal(sess.token, idSoal);
       }
     });
   }

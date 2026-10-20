@@ -236,7 +236,11 @@ function _computeLaporanNilai(ds, dv, faktorUmumGlobal, excludedBonus) {
 // PUBLIC API FUNCTIONS (Thin wrappers — sama persis hasilnya)
 // ============================================================
 
-function simpanSemuaJawaban(payload) {
+function simpanSemuaJawaban(token, payload) {
+  const sess = requireRole(token, ["Responden"]);
+  if (sess.nama_opd !== payload.opd) {
+    throw new Error("Akses ditolak: Anda hanya dapat mengirim jawaban untuk OPD Anda sendiri.");
+  }
   // Validasi Batas Waktu Server-Side
   const props = PropertiesService.getScriptProperties();
   const dGlobal = props.getProperty('deadline_global') || '';
@@ -302,7 +306,8 @@ function getJawabanBySubKategori(subKategori) {
   return _computeJawabanBySubKategori(subKategori, data.ds, data.dj, data.dv);
 }
 
-function simpanVerifikasi(payload) {
+function simpanVerifikasi(token, payload) {
+  requireRole(token, ["Admin", "Evaluator"]);
   const ts = new Date().toISOString();
   if (!payload.items || payload.items.length === 0) return "Berhasil";
   
@@ -405,7 +410,8 @@ function deleteArchiveFolderByOPD(opdName) {
   }
 }
 
-function resetJawabanOPD(opdName) {
+function resetJawabanOPD(token, opdName) {
+  requireRole(token, ["Admin"]);
   // Pindahkan folder snapshot Drive milik OPD ini ke Trash Drive Admin
   deleteArchiveFolderByOPD(opdName);
 
@@ -416,7 +422,8 @@ function resetJawabanOPD(opdName) {
   return "Seluruh data jawaban, draf isian, validasi, dan folder snapshot Drive untuk " + opdName + " berhasil di-reset!";
 }
 
-function resetValidasiOPD(opdName) {
+function resetValidasiOPD(token, opdName) {
+  requireRole(token, ["Admin", "Evaluator"]);
   const opd = Firebase.escapeKey(opdName);
   Firebase.remove(`verifikasi/${opd}`);
   return "Data validasi evaluator untuk " + opdName + " berhasil di-reset!";
@@ -516,7 +523,7 @@ function snapshotDriveFolder(opdName, originalDriveUrl) {
   }
 }
 
-function resnapshotAllByOPD(opdName) {
+function _resnapshotAllByOPDInternal(opdName) {
   if (!opdName) return { success: false, message: "OPD tidak valid" };
 
   try {
@@ -549,7 +556,13 @@ function resnapshotAllByOPD(opdName) {
   }
 }
 
-function resnapshotBySubKategori(subKategori) {
+function resnapshotAllByOPD(token, opdName) {
+  requireRole(token, ["Admin", "Evaluator"]);
+  return _resnapshotAllByOPDInternal(opdName);
+}
+
+function resnapshotBySubKategori(token, subKategori) {
+  requireRole(token, ["Admin", "Evaluator"]);
   if (!subKategori) return { success: false, message: "Sub Kategori (Urusan) tidak valid" };
 
   try {
@@ -566,7 +579,7 @@ function resnapshotBySubKategori(subKategori) {
 
     let totalCount = 0;
     opdSet.forEach(opd => {
-      const res = resnapshotAllByOPD(opd);
+      const res = _resnapshotAllByOPDInternal(opd);
       if (res.success) totalCount += res.count;
     });
 
@@ -580,13 +593,14 @@ function resnapshotBySubKategori(subKategori) {
   }
 }
 
-function resnapshotAllExistingOPDs() {
+function resnapshotAllExistingOPDs(token) {
+  requireRole(token, ["Admin"]);
   try {
     const listOPD = getOPDSudahKirim();
     let totalCount = 0;
     const results = [];
     listOPD.forEach(opd => {
-      const res = resnapshotAllByOPD(opd);
+      const res = _resnapshotAllByOPDInternal(opd);
       if (res.success) {
         totalCount += res.count;
         results.push(`${opd}: ${res.count} item`);
@@ -603,7 +617,11 @@ function resnapshotAllExistingOPDs() {
   }
 }
 
-function simpanDraftJawaban(payload) {
+function simpanDraftJawaban(token, payload) {
+  const sess = requireRole(token, ["Responden"]);
+  if (sess.nama_opd !== payload.opd) {
+    throw new Error("Akses ditolak: Anda hanya dapat menyimpan draf untuk OPD Anda sendiri.");
+  }
   if (!payload || !payload.opd) return { status: "error", message: "Nama OPD tidak valid" };
   
   const opdEscaped = Firebase.escapeKey(payload.opd);

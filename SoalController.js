@@ -42,7 +42,8 @@ function getPertanyaan(namaOPD) {
   return (filtered && filtered.length > 0) ? filtered : data;
 }
 
-function updateSoal(id, kolomIdx, nilaiBaru) {
+function updateSoal(token, id, kolomIdx, nilaiBaru) {
+  requireRole(token, ["Admin"]);
   try {
     const escapedId = Firebase.escapeKey(id.toString());
     const existing = Firebase.get(`master_pertanyaan/${escapedId}`) || {};
@@ -75,7 +76,8 @@ function updateSoal(id, kolomIdx, nilaiBaru) {
   return "Sukses";
 }
 
-function tambahSoal(payload) {
+function tambahSoal(token, payload) {
+  requireRole(token, ["Admin"]);
   if (!payload || !payload.kategori || !payload.subKategori || !payload.pertanyaan) {
     throw new Error("Kategori, Sub Kategori, dan Pertanyaan wajib diisi!");
   }
@@ -103,7 +105,8 @@ function tambahSoal(payload) {
   return { status: "success", id: idSoal, message: "Soal berhasil disimpan!" };
 }
 
-function hapusSoal(id) {
+function hapusSoal(token, id) {
+  requireRole(token, ["Admin"]);
   if (!id) throw new Error("ID Soal tidak valid!");
   try {
     const escapedId = Firebase.escapeKey(id.toString());

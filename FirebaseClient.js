@@ -31,7 +31,7 @@ const Firebase = {
   },
 
   getSecret: function() {
-    return SETTINGS.FIREBASE_SECRET || "";
+    return getFirebaseSecret();
   },
 
   buildUrl: function(path) {

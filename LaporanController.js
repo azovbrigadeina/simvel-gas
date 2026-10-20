@@ -1,4 +1,5 @@
-function buatLaporanUrusan(namaUrusan, format) {
+function buatLaporanUrusan(token, namaUrusan, format) {
+  requireRole(token, ["Admin", "Evaluator"]);
   const props = PropertiesService.getScriptProperties();
   const templateId = props.getProperty('template_id');
   const folderId = props.getProperty('folder_id');

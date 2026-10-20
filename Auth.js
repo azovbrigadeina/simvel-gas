@@ -1,5 +1,5 @@
 function prosesLogin(username, password) {
-  const u = username.trim(); 
+  const u = username.trim();
   const p = password.trim();
 
   try {
@@ -9,9 +9,15 @@ function prosesLogin(username, password) {
       userData = Firebase.get(`users/${Firebase.escapeKey(u.toLowerCase())}`);
     }
     if (userData) {
-      const dbPass = (userData.password !== undefined ? userData.password : userData.pass);
-      const passMatch = (dbPass === p) || (dbPass === "" && (p === "rahasia123" || p === "123"));
-      if (passMatch) {
+      if (_verifyPassword(userData, p)) {
+        // Simpan upgrade hash password legacy (jika terjadi migrasi)
+        try {
+          if (userData.password !== undefined || userData.pass !== undefined) {
+            const escapedOriginal = Firebase.escapeKey(u);
+            Firebase.put(`users/${escapedOriginal}`, userData);
+          }
+        } catch (e) {}
+
         const role = userData.role;
         const nama_opd = userData.nama_opd;
         let sudahIsi = false;
@@ -26,7 +32,9 @@ function prosesLogin(username, password) {
             }
           } catch (e) {}
         }
-        return { status: "success", role: role, nama_opd: nama_opd, username: u, sudahIsi: sudahIsi };
+        const result = { status: "success", role: role, nama_opd: nama_opd, username: u, sudahIsi: sudahIsi };
+        result.token = _createSession(result);
+        return result;
       }
     }
   } catch(e) {
@@ -35,4 +43,3 @@ function prosesLogin(username, password) {
 
   return { status: "error", message: "Username atau Password Salah!" };
 }
-
