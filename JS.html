@@ -272,6 +272,13 @@
     return escHtml(v).replace(/\n/g, ' ');
   }
 
+  // Escape untuk nilai yang ditempatkan di dalam string JS pada atribut onclick.
+  // escHtml/escAttr saja tidak cukup: entitas &#39; akan kembali menjadi kutip
+  // saat HTML diparse dan memutus string JS.
+  function escJsAttr(v) {
+    return escAttr(String(v === undefined || v === null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+  }
+
   function serverCall() {
     const token = (sess && sess.token) ? sess.token : "";
     return google.script.run
@@ -304,7 +311,8 @@
         const opdDeadlines = JSON.parse(res.deadline_opd || '{}');
         if (opdDeadlines[sess.nama_opd]) {
           deadlineStr = opdDeadlines[sess.nama_opd];
-          deadlineUtc = new Date(deadlineStr).getTime();
+          const opdUtc = (res.deadline_opd_utc || {})[sess.nama_opd];
+          deadlineUtc = opdUtc || new Date(deadlineStr).getTime();
         } else {
           deadlineStr = res.deadline_global || "";
           deadlineUtc = res.deadline_global_utc || 0;
@@ -442,7 +450,7 @@
         banner.classList.remove('alert-danger');
         banner.classList.add('alert-warning');
         
-        const dStr = new Date(deadlineStr).toLocaleString('id-ID', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'});
+        const dStr = new Date(deadlineTime).toLocaleString('id-ID', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone:'Asia/Jakarta'});
         textEl.innerText = `Batas akhir: ${dStr}`;
         
         const days = Math.floor(distance / (1000 * 60 * 60 * 24));
@@ -495,18 +503,18 @@
         let isChecked = s.pilihan_teks === lab ? 'checked' : '';
         radioHtml += `
           <div class="form-check mb-2 p-2 border rounded-3 bg-light bg-opacity-50">
-            <input class="form-check-input ms-1" type="radio" name="radio_${q[0]}" 
-              id="${inputId}" value="${bbt}" data-teks="${lab}" 
-              onchange="savRadio('${q[0]}', this)" ${isChecked} ${dis}>
-            <label class="form-check-label ms-2" for="${inputId}">
-              <strong>${lab}.</strong> <span class="text-muted small ms-2">(Bobot: ${bbt})</span>
+            <input class="form-check-input ms-1" type="radio" name="radio_${escAttr(q[0])}" 
+              id="${escAttr(inputId)}" value="${escAttr(bbt)}" data-teks="${lab}" 
+              onchange="savRadio('${escJsAttr(q[0])}', this)" ${isChecked} ${dis}>
+            <label class="form-check-label ms-2" for="${escAttr(inputId)}">
+              <strong>${lab}.</strong> <span class="text-muted small ms-2">(Bobot: ${escHtml(bbt)})</span>
             </label>
           </div>`;
       });
       radioHtml += `</div>`;
 
       h += `
-      <div class="q-card" id="q-card-${q[0]}">
+      <div class="q-card" id="q-card-${escAttr(q[0])}">
         <h5 class="fw-bold mb-3">${escHtml(q[3])} <span class="text-danger">*</span></h5> 
         <div class="deskripsi-box mb-4">${escHtml(q[4]||'').replace(/\n/g,'<br>')}</div> 
         <div class="row g-3">
@@ -516,21 +524,21 @@
           </div>
           <div class="col-md-6">
             <label class="small fw-bold text-muted mb-2">Sistem (Nilai): <span class="text-danger">*</span></label>
-            <input type="text" id="nilai-${q[0]}" class="form-control border-primary mb-3" value="${escAttr(s.sistem_nilai || '')}" oninput="savSistemNilai('${q[0]}',this)" placeholder="contoh: Nilai satuan sebenarnya misal 123 Desa" ${dis}>
+            <input type="text" id="nilai-${escAttr(q[0])}" class="form-control border-primary mb-3" value="${escAttr(s.sistem_nilai || '')}" oninput="savSistemNilai('${escJsAttr(q[0])}',this)" placeholder="contoh: Nilai satuan sebenarnya misal 123 Desa" ${dis}>
 
             <label class="small fw-bold text-muted mb-2">Data Dokumen Pendukung: <span class="text-danger">*</span></label>
-            <input type="text" id="doc-${q[0]}" class="form-control border-primary mb-3" value="${escAttr(s.nama_dokumen || '')}" oninput="savDocName('${q[0]}',this)" placeholder="Contoh: SK Tim Pelaksana, Laporan Kegiatan, dsb" ${dis}>
+            <input type="text" id="doc-${escAttr(q[0])}" class="form-control border-primary mb-3" value="${escAttr(s.nama_dokumen || '')}" oninput="savDocName('${escJsAttr(q[0])}',this)" placeholder="Contoh: SK Tim Pelaksana, Laporan Kegiatan, dsb" ${dis}>
 
             <label class="small fw-bold text-muted mb-2">Link Bukti Dukung (Google Drive): <span class="text-danger">*</span></label>
-            <textarea id="link-${q[0]}" class="form-control border-primary mb-3 ${s.link && !/^https:\/\/(drive|docs)\.google\.com\/.*$/.test(s.link) ? 'is-invalid' : (s.link ? 'is-valid' : '')}" rows="2" oninput="savLinkVal('${q[0]}',this)" placeholder="https://drive.google.com/..." ${dis}>${s.link}</textarea>
+            <textarea id="link-${escAttr(q[0])}" class="form-control border-primary mb-3 ${s.link && !/^https:\/\/(drive|docs)\.google\.com\/.*$/.test(s.link) ? 'is-invalid' : (s.link ? 'is-valid' : '')}" rows="2" oninput="savLinkVal('${escJsAttr(q[0])}',this)" placeholder="https://drive.google.com/..." ${dis}>${escHtml(s.link)}</textarea>
             <div class="invalid-feedback">Link harus berasal dari Google Drive (drive.google.com atau docs.google.com)</div>
             <div class="valid-feedback">Link valid!</div>
             
             <label class="small fw-bold text-muted mb-2 mt-3">Sumber Data & Tahun Data: <span class="text-danger">*</span></label>
-            <input type="text" id="sumber-${q[0]}" class="form-control border-primary mb-3" value="${escAttr(s.sumber_data || '')}" oninput="savSumberData('${q[0]}',this)" placeholder="Contoh: BPS 2023, Laporan Dinas 2024" ${dis}>
+            <input type="text" id="sumber-${escAttr(q[0])}" class="form-control border-primary mb-3" value="${escAttr(s.sumber_data || '')}" oninput="savSumberData('${escJsAttr(q[0])}',this)" placeholder="Contoh: BPS 2023, Laporan Dinas 2024" ${dis}>
             
             <label class="small fw-bold text-muted mb-2">Penjelasan: <span class="text-danger">*</span></label>
-            <textarea id="penjelasan-${q[0]}" class="form-control border-primary" rows="2" oninput="savPenjelasan('${q[0]}',this)" placeholder="Buat Narasi Singkat tentang Data Tersebut" ${dis}>${s.penjelasan || ''}</textarea>
+            <textarea id="penjelasan-${escAttr(q[0])}" class="form-control border-primary" rows="2" oninput="savPenjelasan('${escJsAttr(q[0])}',this)" placeholder="Buat Narasi Singkat tentang Data Tersebut" ${dis}>${escHtml(s.penjelasan || '')}</textarea>
             
             <div class="mt-3 small text-secondary"><i class="bi bi-info-circle"></i> Pastikan akses link disetel ke "Siapa saja yang memiliki link"</div>
           </div>
@@ -909,8 +917,8 @@
     for (let opd in opdDeadlines) {
       html += `<tr>
         <td>${escHtml(opd)}</td>
-        <td>${opdDeadlines[opd].replace('T', ' ')}</td>
-        <td class="text-center"><button class="btn btn-sm btn-danger" onclick="hapusDeadlineOPD('${escAttr(opd)}')"><i class="bi bi-trash"></i></button></td>
+        <td>${escHtml(opdDeadlines[opd].replace('T', ' '))}</td>
+        <td class="text-center"><button class="btn btn-sm btn-danger" onclick="hapusDeadlineOPD('${escJsAttr(opd)}')"><i class="bi bi-trash"></i></button></td>
       </tr>`;
     }
     if(html === '') html = '<tr><td colspan="3" class="text-center text-muted">Belum ada batas waktu khusus.</td></tr>';
@@ -993,7 +1001,7 @@
           </td>
           <td>
             <button class="btn btn-sm btn-outline-info mb-1 w-100" onclick="lihatOpdLaporan(${index})"><i class="bi bi-eye"></i> Lihat OPD</button>
-            <button class="btn btn-sm btn-primary w-100" onclick="pilihFormatCetak('${escAttr(d.urusan)}')"><i class="bi bi-printer"></i> Cetak</button>
+            <button class="btn btn-sm btn-primary w-100" onclick="pilihFormatCetak('${escJsAttr(d.urusan)}')"><i class="bi bi-printer"></i> Cetak</button>
           </td>
         </tr>`;
       });
@@ -1115,6 +1123,9 @@
   }
 
   let globalMasterSoalData = [];
+  // Sumber data saat "Duplikat -> Edit Dulu" agar field pelengkap
+  // (data dukung, penjelasan, referensi) tidak hilang.
+  let duplicateSourceData = null;
   function updateSoalCall(id, kolomIdx, nilaiBaru) {
     google.script.run.withFailureHandler(err => {
       Swal.fire('Gagal', err.message || err, 'error');
@@ -1128,17 +1139,17 @@
       globalMasterSoalData = data || [];
       document.getElementById('t-soal-body').innerHTML = globalMasterSoalData.map((q, idx) => `
         <tr>
-          <td class="fw-bold">${q[0]}</td>
-          <td><input type="text" class="form-control form-control-sm" value="${escAttr(q[1])}" onchange="updateSoalCall('${q[0]}', 1, this.value)"></td>
-          <td><input type="text" class="form-control form-control-sm" value="${escAttr(q[2])}" onchange="updateSoalCall('${q[0]}', 2, this.value)"></td>
-          <td><textarea class="form-control form-control-sm" onchange="updateSoalCall('${q[0]}', 3, this.value)">${escHtml(q[3])}</textarea></td>
-          <td><textarea class="form-control form-control-sm" onchange="updateSoalCall('${q[0]}', 4, this.value)">${escHtml(q[4]||'')}</textarea></td>
-          <td><input type="text" class="form-control form-control-sm" value="${escAttr(q[8]||'')}" onchange="updateSoalCall('${q[0]}', 8, this.value)"></td>
-          <td><input type="text" class="form-control form-control-sm" value="${escAttr(q[9]||'')}" onchange="updateSoalCall('${q[0]}', 9, this.value)"></td>
+          <td class="fw-bold">${escHtml(q[0])}</td>
+          <td><input type="text" class="form-control form-control-sm" value="${escAttr(q[1])}" onchange="updateSoalCall('${escJsAttr(q[0])}', 1, this.value)"></td>
+          <td><input type="text" class="form-control form-control-sm" value="${escAttr(q[2])}" onchange="updateSoalCall('${escJsAttr(q[0])}', 2, this.value)"></td>
+          <td><textarea class="form-control form-control-sm" onchange="updateSoalCall('${escJsAttr(q[0])}', 3, this.value)">${escHtml(q[3])}</textarea></td>
+          <td><textarea class="form-control form-control-sm" onchange="updateSoalCall('${escJsAttr(q[0])}', 4, this.value)">${escHtml(q[4]||'')}</textarea></td>
+          <td><input type="text" class="form-control form-control-sm" value="${escAttr(q[8]||'')}" onchange="updateSoalCall('${escJsAttr(q[0])}', 8, this.value)"></td>
+          <td><input type="text" class="form-control form-control-sm" value="${escAttr(q[9]||'')}" onchange="updateSoalCall('${escJsAttr(q[0])}', 9, this.value)"></td>
           <td class="text-center text-nowrap">
             <button class="btn btn-sm btn-outline-success me-1" onclick="duplikatSoalAction(${idx})" title="Duplikat Soal"><i class="bi bi-copy"></i></button>
             <button class="btn btn-sm btn-outline-primary me-1" onclick="showModalEditSoal(${idx})" title="Edit Detail Soal"><i class="bi bi-pencil-square"></i></button>
-            <button class="btn btn-sm btn-outline-danger" onclick="hapusSoalAction('${escAttr(q[0])}')" title="Hapus Soal"><i class="bi bi-trash"></i></button>
+            <button class="btn btn-sm btn-outline-danger" onclick="hapusSoalAction('${escJsAttr(q[0])}')" title="Hapus Soal"><i class="bi bi-trash"></i></button>
           </td>
         </tr>`).join('');
     }).getPertanyaan();
@@ -1194,7 +1205,7 @@
           <td class="fw-bold text-primary"><i class="bi bi-folder2-open me-2 text-secondary"></i>${escHtml(s.nama)}</td>
           <td>${statusBadge}</td>
           <td class="text-end">
-            <button class="btn ${btnClass} btn-sm fw-bold px-3" onclick="muatValidasi('${escAttr(s.nama)}')"><i class="bi bi-pencil-square me-1"></i> BUKA VALIDASI</button>
+            <button class="btn ${btnClass} btn-sm fw-bold px-3" onclick="muatValidasi('${escJsAttr(s.nama)}')"><i class="bi bi-pencil-square me-1"></i> BUKA VALIDASI</button>
           </td>
         </tr>`;
       });
@@ -1298,9 +1309,9 @@
           <div class="col-md-6 col-lg-4">
             <div class="p-2 border rounded bg-white h-100 d-flex justify-content-between align-items-center shadow-sm">
               <div class="small me-2">
-                <strong class="text-primary fs-6">${lab}.</strong> ${desc}
+                <strong class="text-primary fs-6">${lab}.</strong> ${escHtml(desc)}
               </div>
-              <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1 flex-shrink-0">Bobot: ${bbt}</span>
+              <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1 flex-shrink-0">Bobot: ${escHtml(bbt)}</span>
             </div>
           </div>`;
       });
@@ -1313,7 +1324,7 @@
         badgeHtml += `<span class="badge bg-white text-dark border"><strong class="text-primary">${lab}</strong>: Bobot ${bbt}</span>`;
       });
       badgeHtml += '</div>';
-      badgeHtml += `<div class="small text-secondary bg-white p-2 border rounded shadow-sm">${indikatorText.replace(/\n/g, '<br>')}</div>`;
+      badgeHtml += `<div class="small text-secondary bg-white p-2 border rounded shadow-sm">${escHtml(indikatorText).replace(/\n/g, '<br>')}</div>`;
       return badgeHtml;
     }
   }
@@ -1349,7 +1360,7 @@
             let bbt = weights[k] ? weights[k].trim() : "0";
             let evalSkorStr = (ans.skala_evaluator !== undefined && ans.skala_evaluator !== null) ? ans.skala_evaluator.toString().trim() : "";
             let isSelected = (evalSkorStr === bbt) ? 'selected' : '';
-            selectOptions += `<option value="${bbt}" ${isSelected}>${lab} (Bobot: ${bbt})</option>`;
+            selectOptions += `<option value="${escAttr(bbt)}" ${isSelected}>${lab} (Bobot: ${escHtml(bbt)})</option>`;
           });
 
           // Tombol Link Bukti Dukung (Snapshot vs Link Asli vs Private Alert)
@@ -1358,24 +1369,24 @@
 
           if (showLinkAsli && ans.link_arsip && ans.link) {
             linkButtonsHtml = `
-              <a href="${ans.link_arsip}" target="_blank" class="btn btn-sm btn-success me-1" title="Link Snapshot Admin (Terkunci)">
+              <a href="${escAttr(ans.link_arsip)}" target="_blank" class="btn btn-sm btn-success me-1" title="Link Snapshot Admin (Terkunci)">
                 <i class="bi bi-shield-lock-fill"></i> Snapshot Admin
               </a>
-              <a href="${ans.link}" target="_blank" class="btn btn-sm btn-outline-warning text-dark me-1" title="Link Evd. Asli Responden (Live)">
+              <a href="${escAttr(ans.link)}" target="_blank" class="btn btn-sm btn-outline-warning text-dark me-1" title="Link Evd. Asli Responden (Live)">
                 <i class="bi bi-folder-symlink-fill"></i> Link Evd. Asli
               </a>`;
           } else if (ans.link && !ans.link_arsip && DRIVE_REGEX.test(ans.link)) {
             // Berkas Drive tetapi snapshot gagal / belum ada (kemungkinan link private / belum di-share oleh OPD)
             linkButtonsHtml = `
-              <a href="${ans.link}" target="_blank" class="btn btn-sm btn-outline-danger me-1" title="Sistem gagal menyalin folder ini. Kemungkinan link Google Drive diset Private/Belum di-share oleh OPD. Klik untuk membuka langsung.">
+              <a href="${escAttr(ans.link)}" target="_blank" class="btn btn-sm btn-outline-danger me-1" title="Sistem gagal menyalin folder ini. Kemungkinan link Google Drive diset Private/Belum di-share oleh OPD. Klik untuk membuka langsung.">
                 <i class="bi bi-lock-fill"></i> Terkunci Private (OPD)
               </a>`;
           } else {
             const btnLabel = ans.link_arsip ? '<i class="bi bi-shield-lock"></i> Snapshot Admin' : '<i class="bi bi-link"></i> Bukti';
-            linkButtonsHtml = `<a href="${snapshotUrl}" target="_blank" class="btn btn-sm btn-outline-primary me-1">${btnLabel}</a>`;
+            linkButtonsHtml = `<a href="${escAttr(snapshotUrl)}" target="_blank" class="btn btn-sm btn-outline-primary me-1">${btnLabel}</a>`;
           }
 
-          const safeOpd = escAttr(ans.opd);
+          const safeOpd = escJsAttr(ans.opd);
           const formattedTs = formatTimestampDisplay(ans.timestamp);
 
           html += `
@@ -1388,7 +1399,7 @@
               </div>
               <div class="d-flex align-items-center flex-wrap gap-1">
                 ${linkButtonsHtml}
-                <button class="btn btn-sm btn-outline-success" id="btn-samakan-${i}-${j}" onclick="samakanSkor(${i}, ${j}, '${ans.skala_responden}')" title="Samakan dengan Responden"><i class="bi bi-arrow-down-circle"></i> Samakan Skor</button>
+                <button class="btn btn-sm btn-outline-success" id="btn-samakan-${i}-${j}" onclick="samakanSkor(${i}, ${j}, '${escJsAttr(ans.skala_responden)}')" title="Samakan dengan Responden"><i class="bi bi-arrow-down-circle"></i> Samakan Skor</button>
                 <button class="btn btn-sm btn-outline-info ms-1" onclick="doRefreshSnapshotSingleOPD('${safeOpd}')" title="Refresh Snapshot OPD ini"><i class="bi bi-arrow-repeat"></i></button>
               </div>
             </div>
@@ -1607,9 +1618,9 @@
         tbody.innerHTML = data.map((u, i) => `
           <tr>
             <td class="fw-bold">${escHtml(u[0])}</td>
-            <td>${u[1]}</td>
-            <td><span class="badge ${u[2]==='Admin'?'bg-danger':u[2]==='Evaluator'?'bg-primary':'bg-success'}">${u[2]}</span></td>
-            <td>${u[3] || '-'}</td>
+            <td>${escHtml(u[1])}</td>
+            <td><span class="badge ${u[2]==='Admin'?'bg-danger':u[2]==='Evaluator'?'bg-primary':'bg-success'}">${escHtml(u[2])}</span></td>
+            <td>${escHtml(u[3] || '-')}</td>
             <td class="text-end">
               <button class="btn btn-sm btn-outline-primary me-1" onclick="formUserByIndex(${i})" title="Edit User"><i class="bi bi-pencil"></i></button>
               <button class="btn btn-sm btn-outline-danger" onclick="hapusUserByIndex(${i})" title="Hapus User"><i class="bi bi-trash"></i></button>
@@ -1775,7 +1786,7 @@
           <p class="mb-2">Menduplikasi soal ID: <strong class="text-primary">${currentId}</strong></p>
           <div class="mb-3">
             <label class="form-label fw-bold">ID Soal Baru:</label>
-            <input type="text" id="swal-dup-id" class="form-control" value="${nextId}">
+            <input type="text" id="swal-dup-id" class="form-control" value="${escAttr(nextId)}">
           </div>
           <div class="p-2 bg-light rounded border text-muted" style="max-height: 80px; overflow-y: auto; font-size: 0.82rem;">
             <em>"${(q[3] || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}"</em>
@@ -1826,6 +1837,7 @@
       } else if (res.isDenied) {
         const inputId = document.getElementById('swal-dup-id') ? document.getElementById('swal-dup-id').value.trim() : nextId;
         const finalId = inputId || nextId;
+        duplicateSourceData = q;
 
         document.getElementById('tsoal-id').value = finalId;
         document.getElementById('tsoal-kategori').value = q[1] || "";
@@ -1850,6 +1862,7 @@
   }
 
   function showModalTambahSoal() {
+    duplicateSourceData = null;
     document.getElementById('tsoal-id').value = "";
     document.getElementById('tsoal-kategori').value = "";
     document.getElementById('tsoal-subkategori').value = "";
@@ -1894,6 +1907,12 @@
       targetOPD: target
     };
 
+    if (duplicateSourceData) {
+      payload.dataDukung = duplicateSourceData[5] || "";
+      payload.penjelasan = duplicateSourceData[6] || "";
+      payload.referensi = duplicateSourceData[7] || "";
+    }
+
     Swal.showLoading();
     serverCall().withSuccessHandler(res => {
       Swal.close();
@@ -1903,6 +1922,7 @@
         if (modal) modal.hide();
       }
       Swal.fire('Sukses', (res && res.message) ? res.message : 'Soal baru berhasil ditambahkan!', 'success');
+      duplicateSourceData = null;
       loadSoal();
     }).withFailureHandler(err => {
       Swal.fire('Gagal', (err && err.message) ? err.message : 'Gagal menyimpan soal baru', 'error');
@@ -1944,6 +1964,7 @@
 
     const payload = {
       id: id,
+      mode: 'edit',
       kategori: kat,
       subKategori: subkat,
       pertanyaan: pert,

@@ -206,10 +206,12 @@ function _computeLaporanNilai(ds, dv, faktorUmumGlobal, excludedBonus) {
     for (var urusan in opdScores[opd]) {
       var teknis = opdScores[opd][urusan];
       var totalMurni = faktorUmumGlobal + teknis;
-      var normUrusan = urusan.toLowerCase().trim();
+      var normUrusan = urusan.replace(/\s+/g, " ").trim().toLowerCase();
       var isExcluded = excludedBonus.some(function(ex) {
-        var normEx = (ex || "").toString().trim().toLowerCase();
-        return normEx !== "" && (normUrusan === normEx || normUrusan.includes(normEx) || normEx.includes(normUrusan));
+        var normEx = (ex || "").toString().replace(/\s+/g, " ").trim().toLowerCase();
+        // Exact match saja: substring match membuat "Urusan A" ikut
+        // mengecualikan/memperlakukan bonus untuk "Sub Urusan A".
+        return normEx !== "" && normUrusan === normEx;
       });
       var multiplier = isExcluded ? 1.0 : 1.1;
       var totalAkhir = parseFloat((totalMurni * multiplier).toFixed(2));
@@ -238,7 +240,10 @@ function _computeLaporanNilai(ds, dv, faktorUmumGlobal, excludedBonus) {
 
 function simpanSemuaJawaban(token, payload) {
   const sess = requireRole(token, ["Responden"]);
-  if (sess.nama_opd !== payload.opd) {
+  if (!payload || !payload.opd) {
+    throw new Error("Data jawaban tidak valid.");
+  }
+  if (_normOpdName(sess.nama_opd) !== _normOpdName(payload.opd)) {
     throw new Error("Akses ditolak: Anda hanya dapat mengirim jawaban untuk OPD Anda sendiri.");
   }
   // Validasi Batas Waktu Server-Side
@@ -261,11 +266,17 @@ function simpanSemuaJawaban(token, payload) {
   const existingJawaban = Firebase.get(`jawaban/${opdEscaped}`) || {};
   const validSoalIds = Firebase.getCachedMasterPertanyaan() || {};
   const updates = {};
+  let validCount = 0;
   (payload.jawaban || []).forEach(item => {
     if (!item || item.id === undefined || item.id === null) return;
     const escapedId = Firebase.escapeKey(item.id.toString());
     // Abaikan jawaban untuk soal yang sudah dihapus dari master pertanyaan
-    if (!validSoalIds[escapedId]) return;
+    const soal = validSoalIds[escapedId];
+    if (!soal) return;
+    // Tolak jawaban untuk soal yang bukan milik OPD ini (pertahanan server-side;
+    // UI sudah memfilter, tetapi payload bisa dimanipulasi).
+    if (!_isSoalTargetForOpd(soal, payload.opd)) return;
+    validCount++;
     const prevItem = existingJawaban[escapedId] || {};
     const itemLink = String(item.link || "").trim();
     let linkArsip = prevItem.link_arsip || "";
@@ -287,6 +298,9 @@ function simpanSemuaJawaban(token, payload) {
       penjelasan: item.penjelasan !== undefined ? item.penjelasan : "-"
     };
   });
+  if (validCount === 0 && (payload.jawaban || []).length > 0) {
+    throw new Error("Tidak ada jawaban valid yang dapat disimpan. Muat ulang halaman lalu coba lagi.");
+  }
   if (Object.keys(updates).length > 0) {
     Firebase.patch(`jawaban/${opdEscaped}`, updates);
   }
@@ -415,8 +429,13 @@ function deleteArchiveFolderByOPD(opdName) {
 
 function resetJawabanOPD(token, opdName) {
   requireRole(token, ["Admin"]);
-  // Pindahkan folder snapshot Drive milik OPD ini ke Trash Drive Admin
-  deleteArchiveFolderByOPD(opdName);
+  // Pindahkan folder snapshot Drive milik OPD ini ke Trash Drive Admin.
+  // Kegagalan Drive (mis. izin/kuota) tidak boleh membatalkan reset data Firebase.
+  try {
+    deleteArchiveFolderByOPD(opdName);
+  } catch (e) {
+    Logger.log("resetJawabanOPD: gagal menghapus folder arsip Drive untuk " + opdName + ": " + e.message);
+  }
 
   const opd = Firebase.escapeKey(opdName);
   Firebase.remove(`jawaban/${opd}`);
@@ -623,10 +642,12 @@ function resnapshotAllExistingOPDs(token) {
 
 function simpanDraftJawaban(token, payload) {
   const sess = requireRole(token, ["Responden"]);
-  if (sess.nama_opd !== payload.opd) {
+  if (!payload || !payload.opd) {
+    return { status: "error", message: "Nama OPD tidak valid" };
+  }
+  if (_normOpdName(sess.nama_opd) !== _normOpdName(payload.opd)) {
     throw new Error("Akses ditolak: Anda hanya dapat menyimpan draf untuk OPD Anda sendiri.");
   }
-  if (!payload || !payload.opd) return { status: "error", message: "Nama OPD tidak valid" };
 
   // Cek deadline juga untuk draf
   const propsD = PropertiesService.getScriptProperties();
@@ -646,9 +667,12 @@ function simpanDraftJawaban(token, payload) {
 
   const ts = new Date().toISOString();
   const updates = {};
+  const validSoalIds = Firebase.getCachedMasterPertanyaan() || {};
   (payload.jawaban || []).forEach(item => {
     if (item && item.id) {
       const escapedId = Firebase.escapeKey(item.id.toString());
+      const soal = validSoalIds[escapedId];
+      if (!soal || !_isSoalTargetForOpd(soal, payload.opd)) return;
       updates[escapedId] = {
         timestamp: ts,
         skala_responden: item.skala !== undefined ? item.skala : "",

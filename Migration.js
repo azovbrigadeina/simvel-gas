@@ -9,15 +9,31 @@ function migrateDataToFirebase() {
   const userSheet = ss.getSheetByName("Users");
   if (userSheet) {
     const data = userSheet.getDataRange().getValues().slice(1);
+    const existingUsers = Firebase.get("users") || {};
     const usersObj = {};
     data.forEach(r => {
       if (r[0]) {
         const escapedUser = Firebase.escapeKey(r[0].toString().trim());
-        usersObj[escapedUser] = {
-          password: r[1].toString().trim(),
+        const prev = existingUsers[escapedUser] || {};
+        const plainPassword = r[1] !== undefined ? r[1].toString() : "";
+        const userObj = {
           role: r[2].toString().trim(),
           nama_opd: r[3].toString().trim()
         };
+
+        if (plainPassword.trim() !== "") {
+          // Password dari sheet selalu disimpan sebagai hash, bukan plaintext.
+          _storeUserPassword(userObj, plainPassword);
+        } else if (prev.password_hash) {
+          // Kolom password kosong (mis. hasil Pull) — jangan hapus hash lama.
+          userObj.password_hash = prev.password_hash;
+          userObj.salt = prev.salt;
+        } else if (prev.password !== undefined || prev.pass !== undefined) {
+          if (prev.password !== undefined) userObj.password = prev.password;
+          if (prev.pass !== undefined) userObj.pass = prev.pass;
+        }
+
+        usersObj[escapedUser] = userObj;
       }
     });
     Firebase.put("users", usersObj);
@@ -42,7 +58,9 @@ function migrateDataToFirebase() {
       if (r[0]) {
         const idSoal = Firebase.escapeKey(r[0].toString().trim());
         const katUtama = r[1] ? r[1].toString().trim() : "";
-        const urusanSub = r[2] ? r[2].toString().trim() : "Umum";
+        // Normalisasi spasi agar "KECAMATAN  X" dan "KECAMATAN X" tidak
+        // menjadi dua sub-kategori berbeda di Firebase.
+        const urusanSub = (r[2] ? r[2].toString() : "Umum").replace(/\s+/g, " ").trim() || "Umum";
         pertObj[idSoal] = {
           no: katUtama,
           kategori_utama: katUtama,
@@ -54,7 +72,7 @@ function migrateDataToFirebase() {
           penjelasan: r[6] || "",
           referensi: r[7] || "",
           bobot: r[8] ? r[8].toString().trim() : "",
-          target: r[9] ? r[9].toString().trim() : ""
+          target: r[9] ? r[9].toString().replace(/\s+/g, " ").trim() : ""
         };
       }
     });

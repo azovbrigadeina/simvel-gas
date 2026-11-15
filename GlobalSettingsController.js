@@ -33,11 +33,23 @@ function saveFaktorUmum(token, data) {
 
 function getDeadlineSettings() {
   const props = PropertiesService.getScriptProperties();
-  const tz = Session.getScriptTimeZone();
   const deadlineGlobal = props.getProperty('deadline_global') || '';
+  const deadlineOpdRaw = props.getProperty('deadline_opd') || '{}';
+
+  // Konversi batas waktu per-OPD ke timestamp UTC di server, supaya countdown
+  // di browser tidak bergeser bila timezone perangkat pengguna bukan WIB.
+  let opdDeadlines = {};
+  try { opdDeadlines = JSON.parse(deadlineOpdRaw); } catch (e) {}
+  const deadlineOpdUtc = {};
+  Object.keys(opdDeadlines || {}).forEach(function(opd) {
+    const t = new Date(opdDeadlines[opd]).getTime();
+    if (!isNaN(t)) deadlineOpdUtc[opd] = t;
+  });
+
   return {
     deadline_global: deadlineGlobal,
-    deadline_opd: props.getProperty('deadline_opd') || '{}',
+    deadline_opd: deadlineOpdRaw,
+    deadline_opd_utc: deadlineOpdUtc,
     // Timestamp UTC (ms) untuk perhitungan countdown di client yang akurat lintas timezone
     deadline_global_utc: deadlineGlobal ? new Date(deadlineGlobal).getTime() : 0
   };

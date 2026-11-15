@@ -4,17 +4,22 @@ function prosesLogin(username, password) {
 
   try {
     const escapedU = Firebase.escapeKey(u);
+    let matchedKey = escapedU;
     let userData = Firebase.get(`users/${escapedU}`);
     if (!userData && u !== u.toLowerCase()) {
-      userData = Firebase.get(`users/${Firebase.escapeKey(u.toLowerCase())}`);
+      const lowerKey = Firebase.escapeKey(u.toLowerCase());
+      userData = Firebase.get(`users/${lowerKey}`);
+      if (userData) matchedKey = lowerKey;
     }
     if (userData) {
+      // Catat SEBELUM verifikasi: _verifyPassword() menghapus field password/pass
+      // saat melakukan upgrade hash, sehingga pengecekan setelahnya selalu false.
+      const wasLegacy = (userData.password !== undefined || userData.pass !== undefined);
       if (_verifyPassword(userData, p)) {
         // Simpan upgrade hash password legacy (jika terjadi migrasi)
         try {
-          if (userData.password !== undefined || userData.pass !== undefined) {
-            const escapedOriginal = Firebase.escapeKey(u);
-            Firebase.put(`users/${escapedOriginal}`, userData);
+          if (wasLegacy) {
+            Firebase.put(`users/${matchedKey}`, userData);
           }
         } catch (e) {}
 
@@ -32,7 +37,7 @@ function prosesLogin(username, password) {
             }
           } catch (e) {}
         }
-        const result = { status: "success", role: role, nama_opd: nama_opd, username: u, sudahIsi: sudahIsi };
+        const result = { status: "success", role: role, nama_opd: nama_opd, username: Firebase.unescapeKey(matchedKey), sudahIsi: sudahIsi };
         result.token = _createSession(result);
         return result;
       }

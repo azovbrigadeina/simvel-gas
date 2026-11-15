@@ -1,3 +1,25 @@
+// Normalisasi nama OPD: rapikan spasi ganda, trim, dan lowercase.
+// Dipakai bersama oleh getPertanyaan() dan validasi simpan jawaban agar
+// aturan "soal ini milik OPD mana" konsisten di seluruh aplikasi.
+function _normOpdName(s) {
+  return (s || "").toString().replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+/**
+ * Cek apakah sebuah soal berlaku untuk OPD tertentu.
+ * Target kosong / "-" / "semua" / "all" = berlaku untuk semua OPD.
+ * Selain itu harus cocok EXACT (bukan substring) agar "Kecamatan Kumpeh"
+ * tidak ikut mengambil soal "Kecamatan Kumpeh Ulu".
+ */
+function _isSoalTargetForOpd(soal, namaOPD) {
+  const target = _normOpdName(soal && (soal.target || soal.target_opd));
+  if (!target || target === "-" || target === "semua" || target === "all") return true;
+  const namaNorm = _normOpdName(namaOPD);
+  return target === namaNorm
+    || (namaNorm.includes("keuangan") && target.includes("bpkad"))
+    || (namaNorm.includes("bpkad") && target.includes("keuangan"));
+}
+
 function getPertanyaan(namaOPD) {
   let data = [];
 
@@ -29,17 +51,20 @@ function getPertanyaan(namaOPD) {
     return idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' });
   });
 
-  if (!namaOPD) return data; 
+  if (!namaOPD) return data;
 
-  const namaLower = namaOPD.toString().toLowerCase().trim();
-
+  const namaNorm = _normOpdName(namaOPD);
   const filtered = data.filter(r => {
-    const target = r[9] ? r[9].toString().toLowerCase().trim() : "";
-    if (!target || target === "" || target === "-" || target === "semua" || target === "all") return true;
-    return target.includes(namaLower) || namaLower.includes(target) || (namaLower.includes("keuangan") && target.includes("bpkad")) || (namaLower.includes("bpkad") && target.includes("keuangan"));
+    const target = _normOpdName(r[9]);
+    if (!target || target === "-" || target === "semua" || target === "all") return true;
+    return target === namaNorm
+      || (namaNorm.includes("keuangan") && target.includes("bpkad"))
+      || (namaNorm.includes("bpkad") && target.includes("keuangan"));
   });
 
-  return (filtered && filtered.length > 0) ? filtered : data;
+  // Jangan fallback ke SELURUH bank soal ketika tidak ada yang cocok:
+  // itu membuat responden bisa melihat/mengisi soal milik OPD lain.
+  return filtered;
 }
 
 function updateSoal(token, id, kolomIdx, nilaiBaru) {
@@ -63,6 +88,9 @@ function updateSoal(token, id, kolomIdx, nilaiBaru) {
 
     const propName = propMap[kolomIdx];
     if (propName) {
+      if (propName === "subkat" || propName === "target") {
+        nilaiBaru = (nilaiBaru === undefined || nilaiBaru === null ? "" : nilaiBaru.toString()).replace(/\s+/g, " ").trim();
+      }
       existing[propName] = nilaiBaru;
       if (propName === "kategori_utama") existing["no"] = nilaiBaru;
       if (propName === "subkat") existing["urusan"] = nilaiBaru;
@@ -85,19 +113,29 @@ function tambahSoal(token, payload) {
   const idSoal = payload.id ? payload.id.toString().trim() : ("Q" + Date.now());
   const escapedId = Firebase.escapeKey(idSoal);
 
-  const soalObj = {
+  // Mode edit dipakai oleh modal "Edit Soal". Pada mode ini field yang tidak
+  // dikirim client (data_dukung, penjelasan, referensi) harus dipertahankan.
+  const existing = Firebase.get(`master_pertanyaan/${escapedId}`) || {};
+  const isEdit = payload.mode === "edit";
+  if (!isEdit && Object.keys(existing).length > 0) {
+    throw new Error("ID soal '" + idSoal + "' sudah digunakan. Gunakan ID lain.");
+  }
+
+  const soalObj = Object.assign({}, existing, {
     no: payload.kategori,
     kategori_utama: payload.kategori,
-    urusan: payload.subKategori,
-    subkat: payload.subKategori,
+    urusan: payload.subKategori.toString().replace(/\s+/g, " ").trim(),
+    subkat: payload.subKategori.toString().replace(/\s+/g, " ").trim(),
     pertanyaan: payload.pertanyaan,
     indikator: payload.indikator || "",
-    data_dukung: payload.dataDukung || "",
-    penjelasan: payload.penjelasan || "",
-    referensi: payload.referensi || "",
     bobot: payload.bobot || "100|80|60|40|20",
-    target: payload.targetOPD || ""
-  };
+    target: (payload.targetOPD || "").toString().replace(/\s+/g, " ").trim()
+  });
+
+  // Hanya timpa field pelengkap bila client benar-benar mengirimkannya.
+  if (payload.dataDukung !== undefined) soalObj.data_dukung = payload.dataDukung;
+  if (payload.penjelasan !== undefined) soalObj.penjelasan = payload.penjelasan;
+  if (payload.referensi !== undefined) soalObj.referensi = payload.referensi;
 
   Firebase.put(`master_pertanyaan/${escapedId}`, soalObj);
   Firebase.clearMasterPertanyaanCache();

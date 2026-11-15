@@ -5,6 +5,9 @@
    * tanpa mengubah satu pun alur data atau backend Firebase.
    */
 
+  // escJsAttr() sudah didefinisikan di JS.html (dimuat sebelum file ini),
+  // sehingga aman dipakai untuk nilai di dalam string JS pada atribut onclick.
+
   // Hook applySession untuk menampilkan mobile topbar hanya saat login evaluator
   const _origApplySession = window.applySession;
   window.applySession = function(res) {
@@ -62,7 +65,7 @@
           <tr>
             <td class="text-muted fw-bold small" style="width: 50px;">${i+1}</td>
             <td class="fw-semibold text-dark">
-              <i class="bi bi-building me-2 text-primary opacity-75"></i>${opd}
+              <i class="bi bi-building me-2 text-primary opacity-75"></i>${escHtml(opd)}
             </td>
             <td class="text-end">
               <span class="badge badge-soft-success">
@@ -111,7 +114,7 @@
            statusBadge = '<span class="badge badge-soft-success"><i class="bi bi-check-circle-fill me-1"></i> Selesai Tervalidasi</span>';
            btnClass = 'btn-modern-outline text-success border-success';
         } else {
-           statusBadge = `<span class="badge badge-soft-warning"><i class="bi bi-hourglass-split me-1"></i> Validasi: ${s.total_divalidasi}/${s.total_jawaban}</span>`;
+           statusBadge = `<span class="badge badge-soft-warning"><i class="bi bi-hourglass-split me-1"></i> Validasi: ${escHtml(s.total_divalidasi)}/${escHtml(s.total_jawaban)}</span>`;
            btnClass = 'btn-modern-primary';
         }
         
@@ -119,12 +122,12 @@
         <tr>
           <td>
             <div class="fw-bold text-dark mb-0">
-              <i class="bi bi-folder2-open me-2 text-primary"></i>${s.nama}
+              <i class="bi bi-folder2-open me-2 text-primary"></i>${escHtml(s.nama)}
             </div>
           </td>
           <td>${statusBadge}</td>
           <td class="text-end">
-            <button class="btn ${btnClass} btn-sm btn-modern px-3" onclick="muatValidasi('${s.nama.replace(/'/g, "\\'")}')">
+            <button class="btn ${btnClass} btn-sm btn-modern px-3" onclick="muatValidasi('${escJsAttr(s.nama)}')">
               <i class="bi bi-pencil-square me-1"></i> Buka Lembar Validasi
             </button>
           </td>
@@ -148,9 +151,9 @@
       html += `
       <div class="q-card-modern mb-4">
         <div class="d-flex justify-content-between align-items-start mb-2">
-          <span class="badge badge-soft-primary small">Soal ID: ${soal.id_soal || (i+1)}</span>
+          <span class="badge badge-soft-primary small">Soal ID: ${escHtml(soal.id_soal || (i+1))}</span>
         </div>
-        <h5 class="fw-bold mb-2 text-dark">${soal.pertanyaan}</h5>
+        <h5 class="fw-bold mb-2 text-dark">${escHtml(soal.pertanyaan)}</h5>
         
         <!-- Info Kriteria Pilihan & Bobot Nilai -->
         <div class="indicator-box-modern mb-4">
@@ -175,15 +178,15 @@
             let bbt = weights[k] ? weights[k].trim() : "0";
             let evalSkorStr = (ans.skala_evaluator !== undefined && ans.skala_evaluator !== null) ? ans.skala_evaluator.toString().trim() : "";
             let isSelected = (evalSkorStr === bbt);
-            selectOptions += `<option value="${bbt}" ${isSelected ? 'selected' : ''}>${lab} (Bobot: ${bbt})</option>`;
+            selectOptions += `<option value="${escAttr(bbt)}" ${isSelected ? 'selected' : ''}>${lab} (Bobot: ${escHtml(bbt)})</option>`;
             
             pillButtonsHtml += `
               <button type="button" class="score-pill-btn ${isSelected ? 'active' : ''}" 
                 id="pill-${i}-${j}-${k}"
-                data-skor="${bbt}"
-                onclick="pilihSkorPill(${i}, ${j}, '${bbt}', this)"
-                title="Pilih Skor ${lab} (${bbt})">
-                ${lab} <span class="small opacity-75">(${bbt})</span>
+                data-skor="${escAttr(bbt)}"
+                onclick="pilihSkorPill(${i}, ${j}, '${escJsAttr(bbt)}', this)"
+                title="Pilih Skor ${lab} (${escHtml(bbt)})">
+                ${lab} <span class="small opacity-75">(${escHtml(bbt)})</span>
               </button>`;
           });
 
@@ -193,23 +196,23 @@
 
           if (showLinkAsli && ans.link_arsip && ans.link) {
             linkButtonsHtml = `
-              <a href="${ans.link_arsip}" target="_blank" class="evidence-chip" style="background: var(--success-light); border-color: #A7F3D0; color: #059669;" title="Link Snapshot Admin (Terkunci)">
+              <a href="${escAttr(ans.link_arsip)}" target="_blank" class="evidence-chip" style="background: var(--success-light); border-color: #A7F3D0; color: #059669;" title="Link Snapshot Admin (Terkunci)">
                 <i class="bi bi-shield-lock-fill"></i> Snapshot Admin
               </a>
-              <a href="${ans.link}" target="_blank" class="evidence-chip" style="background: var(--warning-light); border-color: #FDE68A; color: #D97706;" title="Link Evd. Asli Responden (Live)">
+              <a href="${escAttr(ans.link)}" target="_blank" class="evidence-chip" style="background: var(--warning-light); border-color: #FDE68A; color: #D97706;" title="Link Evd. Asli Responden (Live)">
                 <i class="bi bi-folder-symlink-fill"></i> Link Evd. Asli
               </a>`;
           } else if (ans.link && !ans.link_arsip && DRIVE_REGEX.test(ans.link)) {
             linkButtonsHtml = `
-              <a href="${ans.link}" target="_blank" class="evidence-chip" style="background: var(--danger-light); border-color: #FECACA; color: #DC2626;" title="Link Drive Private">
+              <a href="${escAttr(ans.link)}" target="_blank" class="evidence-chip" style="background: var(--danger-light); border-color: #FECACA; color: #DC2626;" title="Link Drive Private">
                 <i class="bi bi-lock-fill"></i> Terkunci Private (OPD)
               </a>`;
           } else {
             const btnLabel = ans.link_arsip ? '<i class="bi bi-shield-lock text-success"></i> Snapshot Admin' : '<i class="bi bi-folder2 text-primary"></i> Berkas Bukti';
-            linkButtonsHtml = `<a href="${snapshotUrl}" target="_blank" class="evidence-chip">${btnLabel}</a>`;
+            linkButtonsHtml = `<a href="${escAttr(snapshotUrl)}" target="_blank" class="evidence-chip">${btnLabel}</a>`;
           }
 
-          const safeOpd = (ans.opd || '').replace(/'/g, "\\'");
+          const safeOpd = escJsAttr(ans.opd);
           const formattedTs = formatTimestampDisplay(ans.timestamp);
 
           html += `
@@ -217,12 +220,12 @@
             <!-- Header OPD Submission -->
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 pb-2 border-bottom">
               <div>
-                <h6 class="fw-bold text-dark mb-0"><i class="bi bi-building me-1 text-primary"></i> ${ans.opd}</h6>
-                <span class="badge badge-soft-neutral small mt-1"><i class="bi bi-clock-history me-1"></i> Disubmit: ${formattedTs}</span>
+                <h6 class="fw-bold text-dark mb-0"><i class="bi bi-building me-1 text-primary"></i> ${escHtml(ans.opd)}</h6>
+                <span class="badge badge-soft-neutral small mt-1"><i class="bi bi-clock-history me-1"></i> Disubmit: ${escHtml(formattedTs)}</span>
               </div>
               <div class="d-flex align-items-center flex-wrap gap-2">
                 ${linkButtonsHtml}
-                <button class="btn btn-sm btn-modern-outline text-success border-success" id="btn-samakan-${i}-${j}" onclick="samakanSkor(${i}, ${j}, '${ans.skala_responden}')" title="Samakan skor dengan responden">
+                <button class="btn btn-sm btn-modern-outline text-success border-success" id="btn-samakan-${i}-${j}" onclick="samakanSkor(${i}, ${j}, '${escJsAttr(ans.skala_responden)}')" title="Samakan skor dengan responden">
                   <i class="bi bi-arrow-down-circle"></i> Samakan Skor
                 </button>
                 <button class="btn btn-sm btn-modern-outline" onclick="doRefreshSnapshotSingleOPD('${safeOpd}')" title="Refresh Snapshot Drive OPD ini">
@@ -235,10 +238,10 @@
             <div class="row g-3 mb-3 align-items-stretch">
               <div class="col-md-8">
                 <div class="p-3 rounded-3 bg-white border h-100 small" style="line-height: 1.6;">
-                  <div><strong class="text-muted">Nilai/Satuan Sistem:</strong> <span class="text-dark fw-semibold">${ans.sistem_nilai || '-'}</span></div>
-                  <div><strong class="text-muted">Data Dokumen Pendukung:</strong> <span class="text-dark fw-semibold">${ans.nama_dokumen || '-'}</span></div>
-                  <div><strong class="text-muted">Sumber & Tahun Data:</strong> <span class="text-dark">${ans.sumber_data || '-'}</span></div>
-                  <div class="mt-1"><strong class="text-muted">Penjelasan Narasi:</strong> <span class="text-dark fst-italic">${ans.penjelasan || '-'}</span></div>
+                  <div><strong class="text-muted">Nilai/Satuan Sistem:</strong> <span class="text-dark fw-semibold">${escHtml(ans.sistem_nilai || '-')}</span></div>
+                  <div><strong class="text-muted">Data Dokumen Pendukung:</strong> <span class="text-dark fw-semibold">${escHtml(ans.nama_dokumen || '-')}</span></div>
+                  <div><strong class="text-muted">Sumber & Tahun Data:</strong> <span class="text-dark">${escHtml(ans.sumber_data || '-')}</span></div>
+                  <div class="mt-1"><strong class="text-muted">Penjelasan Narasi:</strong> <span class="text-dark fst-italic">${escHtml(ans.penjelasan || '-')}</span></div>
                 </div>
               </div>
               
@@ -247,7 +250,7 @@
                   <div class="row g-0 align-items-center">
                     <div class="col-6 border-end" style="border-color: rgba(0,87,183,0.2) !important;">
                       <span class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.65rem;">Opsi Pilihan</span>
-                      <span class="fs-2 fw-bold text-primary">${ans.pilihan_responden || '-'}</span>
+                      <span class="fs-2 fw-bold text-primary">${escHtml(ans.pilihan_responden || '-')}</span>
                     </div>
                     <div class="col-6">
                       <span class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.65rem;">Skor Responden</span>
@@ -273,7 +276,7 @@
               <div class="col-lg-7">
                 <label class="small fw-bold text-muted mb-1">Catatan Tambahan Evaluator:</label>
                 <input type="text" class="form-control form-control-sm form-control-modern" 
-                  value="${ans.catatan||''}" 
+                  value="${escAttr(ans.catatan||'')}" 
                   placeholder="Beri catatan hasil verifikasi (opsional)..."
                   oninput="vData[${i}].jawaban_opd[${j}].catatan=this.value">
               </div>
@@ -387,7 +390,7 @@
         <i class="bi bi-lock-fill fs-2 text-info"></i>
         <div>
           <h6 class="fw-bold mb-0 text-dark">Formulir Terkunci (Jawaban Telah Terkirim)</h6>
-          <p class="mb-0 small text-muted">OPD <strong>${sess.nama_opd}</strong> telah resmi mengirimkan kuesioner. Formulir dalam status <em>hanya lihat (read-only)</em>.</p>
+          <p class="mb-0 small text-muted">OPD <strong>${escHtml(sess.nama_opd)}</strong> telah resmi mengirimkan kuesioner. Formulir dalam status <em>hanya lihat (read-only)</em>.</p>
         </div>
       </div>` : '';
     
@@ -402,7 +405,7 @@
         <div class="d-flex justify-content-between align-items-center mb-1">
           <div>
             <span class="badge badge-soft-primary small mb-1">Langkah ${currentStep} dari ${totalSteps}</span>
-            <h5 class="fw-bold mb-0 text-dark">${katInfo.utama}</h5>
+            <h5 class="fw-bold mb-0 text-dark">${escHtml(katInfo.utama)}</h5>
           </div>
           <div class="text-end">
             <span class="fw-bold text-primary">${progressPercent}% Selesai</span>
@@ -412,7 +415,7 @@
           <div class="stepper-progress-fill" style="width: ${progressPercent}%;"></div>
         </div>
         <div class="mt-2 text-muted small">
-          <i class="bi bi-folder2-open me-1 text-primary"></i> Sub Kategori: <strong>${katInfo.subkat}</strong>
+          <i class="bi bi-folder2-open me-1 text-primary"></i> Sub Kategori: <strong>${escHtml(katInfo.subkat)}</strong>
         </div>
       </div>`;
 
@@ -429,27 +432,27 @@
         
         choiceHtml += `
           <div class="choice-card-modern ${isChecked ? 'selected' : ''} ${dis ? 'disabled' : ''}" 
-            ${dis ? '' : `onclick="document.getElementById('${inputId}').click()"`}>
+            ${dis ? '' : `onclick="document.getElementById('${escJsAttr(inputId)}').click()"`}>
             <div class="d-flex align-items-center gap-2">
-              <input class="form-check-input mt-0" type="radio" name="radio_${q[0]}" 
-                id="${inputId}" value="${bbt}" data-teks="${lab}" 
-                onchange="handleModernRadioSelect('${q[0]}', this)" ${isChecked ? 'checked' : ''} ${dis} style="pointer-events: none;">
+              <input class="form-check-input mt-0" type="radio" name="radio_${escAttr(q[0])}" 
+                id="${escAttr(inputId)}" value="${escAttr(bbt)}" data-teks="${lab}" 
+                onchange="handleModernRadioSelect('${escJsAttr(q[0])}', this)" ${isChecked ? 'checked' : ''} ${dis} style="pointer-events: none;">
               <span class="fw-bold text-dark">${lab}.</span>
               <span class="small text-muted">Pilihan Jawaban ${lab}</span>
             </div>
-            <span class="badge badge-soft-primary small">${bbt} bobot</span>
+            <span class="badge badge-soft-primary small">${escHtml(bbt)} bobot</span>
           </div>`;
       });
       choiceHtml += `</div>`;
 
       h += `
-      <div class="q-card-modern mb-4" id="q-card-${q[0]}">
+      <div class="q-card-modern mb-4" id="q-card-${escAttr(q[0])}">
         <div class="d-flex justify-content-between align-items-start mb-2">
           <span class="badge badge-soft-neutral small">Pertanyaan #${qIndex + 1}</span>
           <span class="text-danger small fw-bold">* Wajib Diisi</span>
         </div>
-        <h5 class="fw-bold mb-3 text-dark">${q[3]}</h5> 
-        <div class="indicator-box-modern mb-3">${(q[4]||'').replace(/\n/g,'<br>')}</div> 
+        <h5 class="fw-bold mb-3 text-dark">${escHtml(q[3])}</h5> 
+        <div class="indicator-box-modern mb-3">${escHtml(q[4]||'').replace(/\n/g,'<br>')}</div> 
         
         <div class="row g-4">
           <div class="col-md-6">
@@ -459,31 +462,31 @@
           <div class="col-md-6">
             <div class="p-3 bg-light rounded-3 border">
               <label class="small fw-bold text-dark mb-1">Nilai / Satuan Sistem: <span class="text-danger">*</span></label>
-              <input type="text" id="nilai-${q[0]}" class="form-control form-control-sm form-control-modern mb-3" 
-                value="${s.sistem_nilai || ''}" oninput="savSistemNilai('${q[0]}',this)" 
+              <input type="text" id="nilai-${escAttr(q[0])}" class="form-control form-control-sm form-control-modern mb-3" 
+                value="${escAttr(s.sistem_nilai || '')}" oninput="savSistemNilai('${escJsAttr(q[0])}',this)" 
                 placeholder="Contoh: 123 Desa / 85%" ${dis}>
 
               <label class="small fw-bold text-dark mb-1">Nama Dokumen Pendukung: <span class="text-danger">*</span></label>
-              <input type="text" id="doc-${q[0]}" class="form-control form-control-sm form-control-modern mb-3" 
-                value="${s.nama_dokumen || ''}" oninput="savDocName('${q[0]}',this)" 
+              <input type="text" id="doc-${escAttr(q[0])}" class="form-control form-control-sm form-control-modern mb-3" 
+                value="${escAttr(s.nama_dokumen || '')}" oninput="savDocName('${escJsAttr(q[0])}',this)" 
                 placeholder="Contoh: SK Bupati No. 12 Tahun 2024" ${dis}>
 
               <label class="small fw-bold text-dark mb-1">Link Bukti Google Drive: <span class="text-danger">*</span></label>
-              <textarea id="link-${q[0]}" class="form-control form-control-sm form-control-modern mb-1 ${s.link && !/^https:\/\/(drive|docs)\.google\.com\/.*$/.test(s.link) ? 'is-invalid' : (s.link ? 'is-valid' : '')}" 
-                rows="2" oninput="savLinkVal('${q[0]}',this)" 
-                placeholder="https://drive.google.com/..." ${dis}>${s.link}</textarea>
+              <textarea id="link-${escAttr(q[0])}" class="form-control form-control-sm form-control-modern mb-1 ${s.link && !/^https:\/\/(drive|docs)\.google\.com\/.*$/.test(s.link) ? 'is-invalid' : (s.link ? 'is-valid' : '')}" 
+                rows="2" oninput="savLinkVal('${escJsAttr(q[0])}',this)" 
+                placeholder="https://drive.google.com/..." ${dis}>${escHtml(s.link)}</textarea>
               <div class="invalid-feedback small">Harus berupa tautan Google Drive / Docs</div>
               <div class="valid-feedback small">Tautan Google Drive valid!</div>
               
               <label class="small fw-bold text-dark mb-1 mt-3">Sumber Data & Tahun: <span class="text-danger">*</span></label>
-              <input type="text" id="sumber-${q[0]}" class="form-control form-control-sm form-control-modern mb-3" 
-                value="${s.sumber_data || ''}" oninput="savSumberData('${q[0]}',this)" 
+              <input type="text" id="sumber-${escAttr(q[0])}" class="form-control form-control-sm form-control-modern mb-3" 
+                value="${escAttr(s.sumber_data || '')}" oninput="savSumberData('${escJsAttr(q[0])}',this)" 
                 placeholder="Contoh: BPS 2023, Laporan Dinas 2024" ${dis}>
               
               <label class="small fw-bold text-dark mb-1">Penjelasan / Narasi: <span class="text-danger">*</span></label>
-              <textarea id="penjelasan-${q[0]}" class="form-control form-control-sm form-control-modern" 
-                rows="2" oninput="savPenjelasan('${q[0]}',this)" 
-                placeholder="Tuliskan keterangan singkat mengenai bukti dukung tersebut..." ${dis}>${s.penjelasan || ''}</textarea>
+              <textarea id="penjelasan-${escAttr(q[0])}" class="form-control form-control-sm form-control-modern" 
+                rows="2" oninput="savPenjelasan('${escJsAttr(q[0])}',this)" 
+                placeholder="Tuliskan keterangan singkat mengenai bukti dukung tersebut..." ${dis}>${escHtml(s.penjelasan || '')}</textarea>
             </div>
           </div>
         </div>
@@ -549,10 +552,10 @@
           }
           return `
           <tr>
-            <td class="fw-bold text-dark">${u[0]}</td>
-            <td><code class="text-muted fw-semibold" style="letter-spacing: 1px;">${u[1]}</code></td>
+            <td class="fw-bold text-dark">${escHtml(u[0])}</td>
+            <td><code class="text-muted fw-semibold" style="letter-spacing: 1px;">${escHtml(u[1])}</code></td>
             <td>${roleBadge}</td>
-            <td class="text-muted small">${u[3] || '-'}</td>
+            <td class="text-muted small">${escHtml(u[3] || '-')}</td>
             <td class="text-end">
               <button class="btn btn-sm btn-modern-outline text-primary me-1 px-2 py-1" onclick="formUserByIndex(${i})" title="Edit User">
                 <i class="bi bi-pencil-square"></i>
@@ -566,6 +569,6 @@
       }
     }).withFailureHandler(err => {
       if (!silent) Swal.fire('Error', 'Gagal memuat pengguna: ' + (err.message || err), 'error');
-    }).getUsersData();
+    }).getUsersData(sess.token);
   };
 </script>

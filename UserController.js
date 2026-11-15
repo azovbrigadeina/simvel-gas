@@ -36,26 +36,29 @@ function updateUser(token, oldUsername, dataUser) {
     const newU = Firebase.escapeKey((dataUser[0] || "").toString().trim());
     if (!oldU || !newU) return { status: "error", message: "Username tidak valid!" };
 
-    if (oldU !== newU) {
-      if (Firebase.get(`users/${newU}`)) return { status: "error", message: "Username sudah digunakan!" };
-      Firebase.remove(`users/${oldU}`);
-    } else {
-      if (!Firebase.get(`users/${oldU}`)) return { status: "error", message: "User tidak ditemukan!" };
+    // Baca data lama SEBELUM record dihapus/ditimpa. Sebelumnya data dibaca
+    // setelah Firebase.remove(), sehingga password user lama selalu hilang.
+    const existingData = Firebase.get(`users/${oldU}`);
+    if (!existingData) return { status: "error", message: "User tidak ditemukan!" };
+    if (oldU !== newU && Firebase.get(`users/${newU}`)) {
+      return { status: "error", message: "Username sudah digunakan!" };
     }
-    const existingData = Firebase.get(`users/${oldU}`) || {};
-    const updatedUser = {
+
+    // Pertahankan seluruh field lama (password/hash/salt) lalu timpa field yang diedit.
+    const updatedUser = Object.assign({}, existingData, {
       role: dataUser[2] || "Responden",
       nama_opd: dataUser[3] || "-"
-    };
+    });
     const newPass = (dataUser[1] !== undefined ? dataUser[1].toString() : "");
     if (newPass !== "") {
       _storeUserPassword(updatedUser, newPass);
-    } else if (existingData.password_hash) {
-      // Password tidak diubah — pertahankan hash lama
-      updatedUser.password_hash = existingData.password_hash;
-      updatedUser.salt = existingData.salt;
     }
+    // Jika password tidak diubah, field password/password_hash/salt lama
+    // otomatis tetap ada lewat Object.assign di atas.
+    // Tulis user baru dulu, baru hapus key lama: kalau penulisan gagal,
+    // akun lama tidak ikut hilang.
     Firebase.put(`users/${newU}`, updatedUser);
+    if (oldU !== newU) Firebase.remove(`users/${oldU}`);
     Firebase.clearMasterOPDCache();
     return { status: "success", message: "User berhasil diperbarui!" };
   } catch (err) {

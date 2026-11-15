@@ -41,10 +41,7 @@ function onOpen() {
   }
 }
 
-// Jalankan SEKALI untuk menyimpan Firebase secret ke Script Properties,
-// lalu hapus fungsi ini dari editor.
-function setSecretSekali() {
-  PropertiesService.getScriptProperties()
-    .setProperty('FIREBASE_SECRET', 'NRsngWcl1TKI6LaLDYWiZQw86jIXGxyk7G1yRfWy');
-  Logger.log("Secret tersimpan: " + (PropertiesService.getScriptProperties().getProperty('FIREBASE_SECRET') ? "OK" : "GAGAL"));
-}
+// Firebase secret TIDAK boleh ditulis di source code.
+// Set nilainya di: Project Settings (Apps Script) -> Script Properties
+// dengan key FIREBASE_SECRET. Jika pernah ter-commit ke Git, rotasi secret
+// di Firebase Console (Project Settings -> Service Accounts / Database Secrets).
