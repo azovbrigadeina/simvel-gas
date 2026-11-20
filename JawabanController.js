@@ -82,13 +82,16 @@ function _computeSubKatStats(ds, dj, dv) {
 
     qIdToSub[qId] = sub;
     if (!stats[sub]) {
-      stats[sub] = { nama: sub, total_jawaban: 0, total_divalidasi: 0 };
+      stats[sub] = { nama: sub, total_jawaban: 0, total_divalidasi: 0, total_tak_dinilai: 0 };
     }
   });
 
   var verifSet = {};
+  var verifNilaiMap = {};
   dv.forEach(function(v) {
-    verifSet[v[1] + "||" + v[2].toString()] = true;
+    var key = v[1] + "||" + v[2].toString();
+    verifSet[key] = true;
+    verifNilaiMap[key] = v[4];
   });
 
   dj.forEach(function(j) {
@@ -97,8 +100,14 @@ function _computeSubKatStats(ds, dj, dv) {
     var sub = qIdToSub[qId];
     if (sub && stats[sub]) {
       stats[sub].total_jawaban++;
-      if (verifSet[opd + "||" + qId]) {
+      var vKey = opd + "||" + qId;
+      if (verifSet[vKey]) {
         stats[sub].total_divalidasi++;
+        // Nilai 0 = ditandai "Tidak Bisa Dinilai" oleh evaluator.
+        var vNilai = verifNilaiMap[vKey];
+        if (vNilai !== "" && vNilai !== null && vNilai !== undefined && Number(vNilai) === 0) {
+          stats[sub].total_tak_dinilai++;
+        }
       }
     }
   });
@@ -108,7 +117,8 @@ function _computeSubKatStats(ds, dj, dv) {
     result.push({
       nama: stats[sub].nama,
       total_jawaban: stats[sub].total_jawaban,
-      total_divalidasi: stats[sub].total_divalidasi
+      total_divalidasi: stats[sub].total_divalidasi,
+      total_tak_dinilai: stats[sub].total_tak_dinilai
     });
   }
   return result;
