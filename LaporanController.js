@@ -147,3 +147,52 @@ function buatLaporanUrusan(token, namaUrusan, format) {
     return "https://docs.google.com/document/d/" + copyDoc.getId() + "/export?format=docx";
   }
 }
+
+/**
+ * Agregasi laporan per urusan.
+ * Satu urusan = satu baris, Total Nilai = rata-rata total_akhir seluruh OPD
+ * pada urusan tersebut, lalu Intensitas & Tipe dihitung dari rata-rata itu.
+ * Logika ini sama dengan perhitungan header pada buatLaporanUrusan.
+ */
+function _aggregateRekapUrusan(laporan) {
+  var groups = {};
+
+  (laporan || []).forEach(function (row) {
+    if (!row || !row.urusan) return;
+    var display = row.urusan.toString().replace(/\s+/g, " ").trim();
+    if (!display || display.toLowerCase() === "umum") return;
+
+    var key = display.toLowerCase();
+    if (!groups[key]) {
+      groups[key] = { urusan: display, total: 0, count: 0 };
+    }
+    groups[key].total += parseFloat(row.total_akhir) || 0;
+    groups[key].count++;
+  });
+
+  var result = [];
+  Object.keys(groups).forEach(function (key) {
+    var g = groups[key];
+    var avg = g.count > 0 ? Number((g.total / g.count).toFixed(2)) : 0;
+    var rating = determineRating(avg);
+    result.push({
+      urusan: g.urusan,
+      total_nilai: avg,
+      intensitas: rating.intensitas,
+      tipe: rating.tipe
+    });
+  });
+
+  result.sort(function (a, b) { return b.total_nilai - a.total_nilai; });
+  return result;
+}
+
+/**
+ * Endpoint publik (tanpa login) untuk tombol Informasi Hasil Penilaian di landing.
+ */
+function getRekapUrusanPublik() {
+  const data = _loadSharedData();
+  const settings = _loadFaktorUmumGlobal();
+  const laporan = _computeLaporanNilai(data.ds, data.dv, settings.faktorUmumGlobal, settings.excludedBonus);
+  return _aggregateRekapUrusan(laporan);
+}
