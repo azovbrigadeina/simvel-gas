@@ -337,6 +337,17 @@ function simpanVerifikasi(token, payload) {
   requireRole(token, ["Admin", "Evaluator"]);
   const ts = new Date().toISOString();
   if (!payload.items || payload.items.length === 0) return "Berhasil";
+
+  // Butir "Tidak Bisa Dinilai" (nilai 0) wajib disertai catatan alasan.
+  // Dicek di server juga agar tidak bisa dilewati lewat payload manual.
+  const bermasalah = payload.items.filter(function (item) {
+    return item && item.skala_evaluator !== "" && item.skala_evaluator !== null && item.skala_evaluator !== undefined
+      && Number(item.skala_evaluator) === 0
+      && String(item.catatan || "").trim() === "";
+  });
+  if (bermasalah.length > 0) {
+    throw new Error("Catatan wajib diisi untuk butir yang ditandai 'Tidak Bisa Dinilai'. Jumlah butir bermasalah: " + bermasalah.length + ".");
+  }
   
   // Kelompokkan item per-OPD agar verifikasi tersimpan ke node OPD masing-masing
   const opdUpdatesMap = {};
