@@ -237,6 +237,7 @@
           
           let selectOptions = `<option value="">-- Pilih Skor --</option>`;
           let pillButtonsHtml = '';
+          const isTakDinilai = ans.skala_evaluator !== "" && ans.skala_evaluator !== null && ans.skala_evaluator !== undefined && Number(ans.skala_evaluator) === 0;
 
           labels.forEach((lab, k) => {
             let bbt = weights[k] ? weights[k].trim() : "0";
@@ -253,6 +254,15 @@
                 ${lab} <span class="small opacity-75">(${escHtml(bbt)})</span>
               </button>`;
           });
+
+          // Tombol khusus "Tidak Bisa Dinilai" (skor 0, catatan wajib) — terpisah dari pill A-E
+          pillButtonsHtml += `
+            <button type="button" class="score-pill-btn btn-tak-dinilai ${isTakDinilai ? 'active' : ''}"
+              id="pill-taknilai-${i}-${j}"
+              onclick="pilihTakBisaDinilai(${i}, ${j})"
+              title="Tandai data tidak lengkap sehingga tidak bisa dinilai (skor 0, catatan wajib)">
+              <i class="bi bi-slash-circle me-1"></i> Tidak Bisa Dinilai
+            </button>`;
 
           // Bukti dukung chip buttons
           const snapshotUrl = ans.link_arsip || ans.link;
@@ -333,15 +343,15 @@
                   ${pillButtonsHtml}
                 </div>
                 <!-- Hidden Select for full backwards compatibility -->
-                <select id="sel-eval-${i}-${j}" class="d-none" onchange="vData[${i}].jawaban_opd[${j}].skala_evaluator=this.value">
+                <select id="sel-eval-${i}-${j}" class="d-none" onchange="pilihSkorSelect(${i}, ${j}, this.value)">
                   ${selectOptions}
                 </select>
               </div>
               <div class="col-lg-7">
                 <label class="small fw-bold text-muted mb-1">Catatan Tambahan Evaluator:</label>
-                <input type="text" class="form-control form-control-sm form-control-modern" 
+                <input type="text" id="catatan-eval-${i}-${j}" class="form-control form-control-sm form-control-modern" 
                   value="${escAttr(ans.catatan||'')}" 
-                  placeholder="Beri catatan hasil verifikasi (opsional)..."
+                  placeholder="Beri catatan hasil verifikasi (wajib bila pilih 'Tidak Bisa Dinilai')..."
                   oninput="vData[${i}].jawaban_opd[${j}].catatan=this.value">
               </div>
             </div>
