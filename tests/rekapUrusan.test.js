@@ -59,14 +59,56 @@ test('getRekapUrusanPublik memakai data laporan dan hanya mengembalikan 3 kolom 
   ctx._loadFaktorUmumGlobal = function () { return { faktorUmumGlobal: 0, excludedBonus: [] }; };
   ctx._computeLaporanNilai = function () {
     return [
-      { urusan: 'Urusan Pendidikan', total_akhir: 700, faktor_umum: 0, faktor_teknis: 700, opd: 'A' },
-      { urusan: 'Urusan Pendidikan', total_akhir: 800, faktor_umum: 0, faktor_teknis: 800, opd: 'B' }
+      { urusan: 'Urusan Pendidikan', total_akhir: 700, faktor_umum: 0, faktor_teknis: 700, bonus_applied: false, opd: 'A' },
+      { urusan: 'Urusan Pendidikan', total_akhir: 800, faktor_umum: 0, faktor_teknis: 800, bonus_applied: false, opd: 'B' }
     ];
   };
   const res = JSON.parse(JSON.stringify(ctx.getRekapUrusanPublik()));
   assert.deepStrictEqual(res, [
     { urusan: 'Urusan Pendidikan', total_nilai: 750, intensitas: 'Sedang', tipe: 'Tipe B' }
   ]);
+});
+
+test('getRekapUrusanPublik menghitung rata-rata per OPD saat nama urusan bervariasi', function () {
+  const ctx = loadContext();
+  const ds = [
+    ['1', 'B. FAKTOR TEKNIS', 'Urusan X', 'Pertanyaan 1', '', '', '', '', '', ''],
+    ['2', 'B. FAKTOR TEKNIS', 'urusan   x', 'Pertanyaan 2', '', '', '', '', '', ''],
+    ['3', 'B. FAKTOR TEKNIS', 'Urusan X', 'Pertanyaan 3', '', '', '', '', '', '']
+  ];
+  const dv = [
+    ['t', 'OPD A', '1', 0, 300, ''],
+    ['t', 'OPD A', '2', 0, 50, ''],
+    ['t', 'OPD B', '3', 0, 200, '']
+  ];
+  ctx._loadSharedData = function () { return { ds: ds, dj: [], dv: dv }; };
+  ctx._loadFaktorUmumGlobal = function () { return { faktorUmumGlobal: 100, excludedBonus: [] }; };
+
+  const res = JSON.parse(JSON.stringify(ctx.getRekapUrusanPublik()));
+  assert.deepStrictEqual(res, [
+    { urusan: 'Urusan X', total_nilai: 412.5, intensitas: 'Kecil', tipe: 'Tipe C' }
+  ]);
+});
+
+test('getRekapUrusanPublik memakai cache bila tersedia', function () {
+  const ctx = loadContext();
+  let loadCount = 0;
+  ctx._loadSharedData = function () { loadCount++; return { ds: [], dj: [], dv: [] }; };
+  ctx._loadFaktorUmumGlobal = function () { return { faktorUmumGlobal: 0, excludedBonus: [] }; };
+  ctx._computeLaporanNilai = function () { return []; };
+  ctx.CacheService = {
+    getScriptCache: function () {
+      return {
+        get: function () { return JSON.stringify([{ urusan: 'Cache', total_nilai: 1, intensitas: 'X', tipe: 'Y' }]); },
+        put: function () {}
+      };
+    }
+  };
+  const res = JSON.parse(JSON.stringify(ctx.getRekapUrusanPublik()));
+  assert.deepStrictEqual(res, [
+    { urusan: 'Cache', total_nilai: 1, intensitas: 'X', tipe: 'Y' }
+  ]);
+  assert.strictEqual(loadCount, 0);
 });
 
 test('getRekapUrusanPublik mengembalikan array kosong saat belum ada data', function () {

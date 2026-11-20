@@ -16,4 +16,10 @@ test('fungsi modal memanggil endpoint publik dan meng-escape urusan', function (
   assert.match(modernJs, /window\.showInformasiHasilPenilaian\s*=\s*function/);
   assert.match(modernJs, /\.getRekapUrusanPublik\(\)/);
   assert.match(modernJs, /escHtml\(d\.urusan\)/);
+  assert.match(modernJs, /escHtml\(d\.intensitas\)/);
+  assert.match(modernJs, /escHtml\(d\.tipe\)/);
+});
+
+test('modal menampilkan pesan ramah saat data kosong', function () {
+  assert.match(modernJs, /Belum ada data penilaian yang dapat ditampilkan\./);
 });

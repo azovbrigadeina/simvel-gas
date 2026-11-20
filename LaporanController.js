@@ -150,30 +150,70 @@ function buatLaporanUrusan(token, namaUrusan, format) {
 
 /**
  * Agregasi laporan per urusan.
- * Satu urusan = satu baris, Total Nilai = rata-rata total_akhir seluruh OPD
- * pada urusan tersebut, lalu Intensitas & Tipe dihitung dari rata-rata itu.
- * Logika ini sama dengan perhitungan header pada buatLaporanUrusan.
+ * Satu urusan = satu baris. Bila satu OPD menghasilkan beberapa baris karena
+ * variasi penulisan nama urusan, baris-baris itu digabung menjadi SATU
+ * kontribusi OPD (Faktor Umum dihitung sekali, Faktor Teknis dijumlahkan),
+ * lalu Total Nilai urusan = rata-rata kontribusi seluruh OPD. Untuk nama
+ * urusan yang seragam, hasilnya sama dengan perhitungan buatLaporanUrusan.
  */
 function _aggregateRekapUrusan(laporan) {
-  var groups = {};
+  var groups = Object.create(null);
+  var rowSeq = 0;
 
   (laporan || []).forEach(function (row) {
     if (!row || !row.urusan) return;
     var display = row.urusan.toString().replace(/\s+/g, " ").trim();
     if (!display || display.toLowerCase() === "umum") return;
 
-    var key = display.toLowerCase();
-    if (!groups[key]) {
-      groups[key] = { urusan: display, total: 0, count: 0 };
+    var urusanKey = display.toLowerCase();
+    if (!groups[urusanKey]) {
+      groups[urusanKey] = { urusan: display, opds: Object.create(null) };
     }
-    groups[key].total += parseFloat(row.total_akhir) || 0;
-    groups[key].count++;
+
+    var opdKey = row.opd ? row.opd.toString() : ("__row_" + (rowSeq++));
+    var opd = groups[urusanKey].opds[opdKey];
+    if (!opd) {
+      opd = { total: 0, hasTotal: false, extraTeknis: 0, multiplier: 1.0, hasBreakdown: false };
+      groups[urusanKey].opds[opdKey] = opd;
+    }
+
+    var hasBreakdown = row.faktor_umum !== undefined && row.faktor_teknis !== undefined;
+    if (!hasBreakdown) {
+      opd.total += parseFloat(row.total_akhir) || 0;
+      opd.hasTotal = true;
+      return;
+    }
+
+    opd.hasBreakdown = true;
+    if (!opd.hasTotal) {
+      // Baris pertama OPD ini: pakai total_akhir apa adanya agar identik
+      // dengan buatLaporanUrusan ketika nama urusan seragam.
+      opd.total = parseFloat(row.total_akhir) || 0;
+      opd.multiplier = row.bonus_applied === false ? 1.0 : 1.1;
+      opd.hasTotal = true;
+    } else {
+      // Baris varian berikutnya: tambahkan kontribusi teknisnya saja,
+      // tanpa menghitung ulang Faktor Umum.
+      opd.extraTeknis += parseFloat(row.faktor_teknis) || 0;
+    }
   });
 
   var result = [];
-  Object.keys(groups).forEach(function (key) {
-    var g = groups[key];
-    var avg = g.count > 0 ? Number((g.total / g.count).toFixed(2)) : 0;
+  Object.keys(groups).forEach(function (urusanKey) {
+    var g = groups[urusanKey];
+    var opdKeys = Object.keys(g.opds);
+    var sumTotal = 0;
+
+    opdKeys.forEach(function (opdKey) {
+      var opd = g.opds[opdKey];
+      if (opd.hasBreakdown) {
+        sumTotal += opd.total + (opd.extraTeknis * opd.multiplier);
+      } else {
+        sumTotal += opd.total;
+      }
+    });
+
+    var avg = opdKeys.length > 0 ? Number((sumTotal / opdKeys.length).toFixed(2)) : 0;
     var rating = determineRating(avg);
     result.push({
       urusan: g.urusan,
@@ -189,10 +229,25 @@ function _aggregateRekapUrusan(laporan) {
 
 /**
  * Endpoint publik (tanpa login) untuk tombol Informasi Hasil Penilaian di landing.
+ * Hasil di-cache singkat agar klik berulang tidak selalu membaca seluruh database.
  */
 function getRekapUrusanPublik() {
+  var cacheKey = 'simvel_rekap_urusan_publik_v1';
+  var cache = null;
+  try {
+    cache = CacheService.getScriptCache();
+    var cached = cache.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+  } catch (e) {}
+
   const data = _loadSharedData();
   const settings = _loadFaktorUmumGlobal();
   const laporan = _computeLaporanNilai(data.ds, data.dv, settings.faktorUmumGlobal, settings.excludedBonus);
-  return _aggregateRekapUrusan(laporan);
+  var result = _aggregateRekapUrusan(laporan);
+
+  try {
+    if (cache) cache.put(cacheKey, JSON.stringify(result), 180);
+  } catch (e) {}
+
+  return result;
 }
