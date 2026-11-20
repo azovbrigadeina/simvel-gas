@@ -1,3 +1,13 @@
+/**
+ * Format skor evaluator untuk baris tabel laporan.
+ * 0 harus tercetak "0" (penanda Tidak Bisa Dinilai), bukan "-" —
+ * cek truthy lama membuat 0 tampil "-" seperti data kosong.
+ */
+function _formatSkorEval(ans) {
+  const v = ans && ans.skala_evaluator;
+  return (v === "" || v === null || v === undefined) ? "-" : v.toString();
+}
+
 function buatLaporanUrusan(token, namaUrusan, format) {
   requireRole(token, ["Admin", "Evaluator"]);
   const props = PropertiesService.getScriptProperties();
@@ -125,7 +135,7 @@ function buatLaporanUrusan(token, namaUrusan, format) {
         newRow.replaceText("{{FT_DATA_DUKUNG}}", ans.nama_dokumen || "-");
         newRow.replaceText("{{FT_SUMBER}}", ans.sumber_data || "-");
         newRow.replaceText("{{FT_PENJELASAN}}", ans.penjelasan || "-");
-        newRow.replaceText("{{FT_SKOR}}", ans.skala_evaluator ? ans.skala_evaluator.toString() : "-");
+        newRow.replaceText("{{FT_SKOR}}", _formatSkorEval(ans));
         ftTable.appendTableRow(newRow);
         rowIdx++;
       });
