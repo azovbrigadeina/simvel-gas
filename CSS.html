@@ -260,4 +260,36 @@
     from { opacity: 1; }
     to { opacity: 0; }
   }
+
+  /* Tombol khusus "Tidak Bisa Dinilai" — bobot 0 untuk data tidak lengkap.
+     Dibedakan dari pill A-E lewat warna bahaya + glow berdenyut. */
+  .btn-tak-dinilai {
+    border: 1.5px solid #DC2626;
+    background: #FEF2F2;
+    color: #B91C1C;
+    font-weight: 700;
+    animation: takDinilaiGlow 1.8s ease-in-out infinite;
+  }
+  .btn-tak-dinilai:hover {
+    background: #FEE2E2;
+    border-color: #B91C1C;
+    color: #991B1B;
+  }
+  .btn-tak-dinilai.active {
+    background: #DC2626;
+    border-color: #DC2626;
+    color: #fff;
+    animation: takDinilaiGlowActive 1.4s ease-in-out infinite;
+  }
+  @keyframes takDinilaiGlow {
+    0%, 100% { box-shadow: 0 0 0 rgba(220, 38, 38, 0); }
+    50% { box-shadow: 0 0 10px rgba(220, 38, 38, 0.45); }
+  }
+  @keyframes takDinilaiGlowActive {
+    0%, 100% { box-shadow: 0 0 4px rgba(220, 38, 38, 0.55); }
+    50% { box-shadow: 0 0 16px rgba(220, 38, 38, 0.85); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .btn-tak-dinilai, .btn-tak-dinilai.active { animation: none; box-shadow: 0 0 8px rgba(220, 38, 38, 0.5); }
+  }
 </style>
