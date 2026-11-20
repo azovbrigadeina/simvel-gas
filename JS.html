@@ -1388,6 +1388,8 @@
 
           const safeOpd = escJsAttr(ans.opd);
           const formattedTs = formatTimestampDisplay(ans.timestamp);
+          // Nilai 0 = ditandai "Tidak Bisa Dinilai" (data tidak lengkap).
+          const isTakDinilai = ans.skala_evaluator !== "" && ans.skala_evaluator !== null && ans.skala_evaluator !== undefined && Number(ans.skala_evaluator) === 0;
 
           html += `
           <div class="border rounded-3 p-3 mb-3 bg-white shadow-sm">
@@ -1400,6 +1402,7 @@
               <div class="d-flex align-items-center flex-wrap gap-1">
                 ${linkButtonsHtml}
                 <button class="btn btn-sm btn-outline-success" id="btn-samakan-${i}-${j}" onclick="samakanSkor(${i}, ${j}, '${escJsAttr(ans.skala_responden)}')" title="Samakan dengan Responden"><i class="bi bi-arrow-down-circle"></i> Samakan Skor</button>
+                <button class="btn btn-sm btn-tak-dinilai ${isTakDinilai ? 'active' : ''}" id="btn-taknilai-${i}-${j}" onclick="pilihTakBisaDinilai(${i}, ${j})" title="Tandai data tidak lengkap sehingga tidak bisa dinilai (skor 0, catatan wajib)"><i class="bi bi-slash-circle me-1"></i> Tidak Bisa Dinilai</button>
                 <button class="btn btn-sm btn-outline-info ms-1" onclick="doRefreshSnapshotSingleOPD('${safeOpd}')" title="Refresh Snapshot OPD ini"><i class="bi bi-arrow-repeat"></i></button>
               </div>
             </div>
@@ -1434,13 +1437,13 @@
             <div class="row g-2">
               <div class="col-md-3">
                 <label class="small fw-bold">Skor Evaluator</label>
-                <select id="sel-eval-${i}-${j}" class="form-select form-select-sm border-success fw-bold" onchange="vData[${i}].jawaban_opd[${j}].skala_evaluator=this.value">
+                <select id="sel-eval-${i}-${j}" class="form-select form-select-sm border-success fw-bold" onchange="pilihSkorSelect(${i}, ${j}, this.value)">
                   ${selectOptions}
                 </select>
               </div>
               <div class="col-md-9">
                 <label class="small fw-bold">Catatan Evaluator</label>
-                <input type="text" class="form-control form-control-sm" value="${escAttr(ans.catatan||'')}" oninput="vData[${i}].jawaban_opd[${j}].catatan=this.value">
+                <input type="text" id="catatan-eval-${i}-${j}" class="form-control form-control-sm" value="${escAttr(ans.catatan||'')}" oninput="vData[${i}].jawaban_opd[${j}].catatan=this.value">
               </div>
             </div>
           </div>`;
@@ -1476,6 +1479,42 @@
     }).getJawabanBySubKategori(subKat);
   }
 
+  function pilihSkorSelect(i, j, skorVal) {
+    if (!vData || !vData[i] || !vData[i].jawaban_opd[j]) return;
+    vData[i].jawaban_opd[j].skala_evaluator = skorVal;
+    // Memilih skor A-E berarti membatalkan tanda "Tidak Bisa Dinilai".
+    const btnTak = document.getElementById(`btn-taknilai-${i}-${j}`);
+    if (btnTak) btnTak.classList.remove('active');
+  }
+
+  function pilihTakBisaDinilai(i, j) {
+    if (!vData || !vData[i] || !vData[i].jawaban_opd[j]) return;
+    const ans = vData[i].jawaban_opd[j];
+    ans.skala_evaluator = 0;
+
+    // Reset tampilan pill/select (tidak ada pilihan A-E yang bernilai 0)
+    const sel = document.getElementById(`sel-eval-${i}-${j}`);
+    if (sel) sel.value = "";
+    const group = document.getElementById(`score-pill-group-${i}-${j}`);
+    if (group) group.querySelectorAll('.score-pill-btn').forEach(btn => btn.classList.remove('active'));
+
+    // Tandai tombol aktif
+    const btn = document.getElementById(`btn-taknilai-${i}-${j}`);
+    if (btn) btn.classList.add('active');
+
+    // Catatan wajib: fokuskan input catatan pada kartu ini
+    const cat = document.getElementById(`catatan-eval-${i}-${j}`);
+    if (cat) { cat.focus(); cat.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+
+    Swal.fire({
+      icon: 'warning',
+      title: 'Tidak Bisa Dinilai',
+      text: 'Butir ini diberi skor 0. Catatan alasan WAJIB diisi sebelum menyimpan.',
+      timer: 2500,
+      showConfirmButton: false
+    });
+  }
+
   function samakanSkor(i, j, skor) {
     if (!vData || !vData[i] || !vData[i].jawaban_opd || !vData[i].jawaban_opd[j]) return;
     
@@ -1495,6 +1534,10 @@
     }
 
     ans.skala_evaluator = skorStr;
+
+    // Skor A-E membatalkan tanda "Tidak Bisa Dinilai".
+    const btnTak = document.getElementById(`btn-taknilai-${i}-${j}`);
+    if (btnTak) btnTak.classList.remove('active');
 
     // 1. Update <select> element
     const sel = document.getElementById(`sel-eval-${i}-${j}`);
@@ -1547,6 +1590,30 @@
 
   function simpanVal() {
     if(vData.length === 0) return;
+    
+    // Butir "Tidak Bisa Dinilai" (skor 0) wajib punya catatan sebelum disimpan.
+    let jmlBermasalah = 0;
+    let firstCardEl = null;
+    vData.forEach((soal, i) => {
+      soal.jawaban_opd.forEach((ans, j) => {
+        if (ans.skala_evaluator !== "" && ans.skala_evaluator !== null && ans.skala_evaluator !== undefined
+            && Number(ans.skala_evaluator) === 0
+            && String(ans.catatan || "").trim() === "") {
+          jmlBermasalah++;
+          if (!firstCardEl) firstCardEl = document.getElementById(`catatan-eval-${i}-${j}`);
+        }
+      });
+    });
+    if (jmlBermasalah > 0) {
+      if (firstCardEl) firstCardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      Swal.fire({
+        icon: 'warning',
+        title: 'Catatan Wajib',
+        text: 'Ada ' + jmlBermasalah + ' butir "Tidak Bisa Dinilai" yang belum diberi catatan. Lengkapi catatan terlebih dahulu.',
+        confirmButtonText: 'Mengerti'
+      });
+      return;
+    }
     
     let itemsToSave = [];
     vData.forEach(soal => {
