@@ -40,6 +40,70 @@
     if (bd) bd.classList.remove('show');
   };
 
+  // 0. Info Batas Waktu (Deadline) di laman landing
+  //    Sumber data: Pengaturan > Batas Waktu (deadline_global) via server.
+  (function initLandingDeadlineInfo() {
+    const wrap = document.getElementById('landing-deadline-info');
+    if (!wrap || typeof google === 'undefined' || !google.script || !google.script.run) return;
+
+    const dateEl = document.getElementById('landing-deadline-date');
+    const countTextEl = document.getElementById('landing-deadline-countdown-text');
+    let timer = null;
+
+    function renderCountdown(deadlineMs) {
+      const distance = deadlineMs - Date.now();
+      wrap.classList.toggle('is-urgent', distance > 0 && distance <= 24 * 60 * 60 * 1000);
+      wrap.classList.toggle('is-passed', distance <= 0);
+
+      if (distance <= 0) {
+        countTextEl.textContent = 'Berakhir';
+        if (timer) { clearInterval(timer); timer = null; }
+        return;
+      }
+
+      const totalMinutes = Math.floor(distance / 60000);
+      const days = Math.floor(totalMinutes / 1440);
+      const hours = Math.floor((totalMinutes % 1440) / 60);
+      const minutes = totalMinutes % 60;
+
+      let text;
+      if (days > 0) text = days + ' hari ' + hours + ' jam';
+      else if (hours > 0) text = hours + ' jam ' + minutes + ' mnt';
+      else text = Math.max(minutes, 1) + ' mnt';
+
+      countTextEl.textContent = 'Sisa ' + text;
+    }
+
+    function showDeadlineInfo(res) {
+      if (!res) return;
+
+      // Gunakan timestamp UTC dari server agar konsisten lintas timezone.
+      let deadlineMs = Number(res.deadline_global_utc);
+      if (!isFinite(deadlineMs) || deadlineMs <= 0) {
+        const raw = res.deadline_global || '';
+        if (!raw) return;
+        deadlineMs = new Date(raw).getTime();
+        if (isNaN(deadlineMs)) return;
+      }
+
+      dateEl.textContent = new Date(deadlineMs).toLocaleString('id-ID', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Asia/Jakarta'
+      }) + ' WIB';
+
+      wrap.classList.remove('d-none');
+      renderCountdown(deadlineMs);
+      timer = setInterval(function() { renderCountdown(deadlineMs); }, 60000);
+    }
+
+    google.script.run.withSuccessHandler(showDeadlineInfo).getDeadlineSettings();
+  })();
+
   // 1. Modern Dashboard Statistics Renderer
   window.loadStats = function() {
     google.script.run.withSuccessHandler(s => { 
