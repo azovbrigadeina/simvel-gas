@@ -1200,10 +1200,15 @@
            statusBadge = `<span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i> Validasi: ${s.total_divalidasi}/${s.total_jawaban}</span>`;
         }
         
+        // Badge butir "Tidak Bisa Dinilai" (skor 0) — tidak mengubah status Selesai
+        const takDinilaiBadge = (Number(s.total_tak_dinilai || 0) > 0)
+          ? `<span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 ms-1"><i class="bi bi-exclamation-triangle me-1"></i> ${s.total_tak_dinilai} tak bisa dinilai</span>`
+          : '';
+        
         h += `
         <tr>
           <td class="fw-bold text-primary"><i class="bi bi-folder2-open me-2 text-secondary"></i>${escHtml(s.nama)}</td>
-          <td>${statusBadge}</td>
+          <td>${statusBadge}${takDinilaiBadge}</td>
           <td class="text-end">
             <button class="btn ${btnClass} btn-sm fw-bold px-3" onclick="muatValidasi('${escJsAttr(s.nama)}')"><i class="bi bi-pencil-square me-1"></i> BUKA VALIDASI</button>
           </td>
@@ -1483,8 +1488,10 @@
     if (!vData || !vData[i] || !vData[i].jawaban_opd[j]) return;
     vData[i].jawaban_opd[j].skala_evaluator = skorVal;
     // Memilih skor A-E berarti membatalkan tanda "Tidak Bisa Dinilai".
-    const btnTak = document.getElementById(`btn-taknilai-${i}-${j}`);
-    if (btnTak) btnTak.classList.remove('active');
+    ['btn-taknilai-', 'pill-taknilai-'].forEach(pfx => {
+      const el = document.getElementById(pfx + i + '-' + j);
+      if (el) el.classList.remove('active');
+    });
   }
 
   function pilihTakBisaDinilai(i, j) {
@@ -1498,9 +1505,11 @@
     const group = document.getElementById(`score-pill-group-${i}-${j}`);
     if (group) group.querySelectorAll('.score-pill-btn').forEach(btn => btn.classList.remove('active'));
 
-    // Tandai tombol aktif
-    const btn = document.getElementById(`btn-taknilai-${i}-${j}`);
-    if (btn) btn.classList.add('active');
+    // Tandai tombol aktif (classic: btn-taknilai-*, modern: pill-taknilai-*)
+    ['btn-taknilai-', 'pill-taknilai-'].forEach(pfx => {
+      const el = document.getElementById(pfx + i + '-' + j);
+      if (el) el.classList.add('active');
+    });
 
     // Catatan wajib: fokuskan input catatan pada kartu ini
     const cat = document.getElementById(`catatan-eval-${i}-${j}`);
