@@ -67,8 +67,44 @@ function getPertanyaan(namaOPD) {
   return filtered;
 }
 
+/**
+ * Validasi format bobot nilai soal.
+ * Format wajib 5 angka positif dipisah "|" (satu per pilihan A-E).
+ * Nilai 0 dilarang karena 0 di skala evaluator dipakai sebagai penanda
+ * "Tidak Bisa Dinilai" (lihat simpanVerifikasi).
+ * Mengembalikan string ternormalisasi, atau melempar Error bila tidak valid.
+ */
+function _validateBobot(bobot) {
+  const raw = (bobot === undefined || bobot === null) ? "" : bobot.toString();
+  const parts = raw.split("|").map(function (p) { return p.trim(); });
+
+  if (parts.length !== 5) {
+    throw new Error("Bobot harus terdiri dari 5 nilai (A|B|C|D|E), dipisah tanda '|'. Nilai diterima: '" + raw + "'.");
+  }
+
+  for (let i = 0; i < parts.length; i++) {
+    if (!/^\d+$/.test(parts[i])) {
+      throw new Error("Setiap nilai bobot harus berupa angka bulat positif. Nilai tidak valid: '" + parts[i] + "'.");
+    }
+  }
+
+  const nums = parts.map(Number);
+  for (let i = 0; i < nums.length; i++) {
+    if (nums[i] <= 0) {
+      throw new Error("Bobot setiap pilihan harus lebih dari 0 (nilai 0 khusus untuk 'Tidak Bisa Dinilai').");
+    }
+  }
+
+  return nums.join("|");
+}
+
 function updateSoal(token, id, kolomIdx, nilaiBaru) {
   requireRole(token, ["Admin"]);
+  // Validasi bobot di luar try agar pesan error naik ke client,
+  // bukan tertelan oleh catch Firebase di bawah.
+  if (kolomIdx === 8) {
+    nilaiBaru = _validateBobot(nilaiBaru);
+  }
   try {
     const escapedId = Firebase.escapeKey(id.toString());
     const existing = Firebase.get(`master_pertanyaan/${escapedId}`) || {};
@@ -128,7 +164,7 @@ function tambahSoal(token, payload) {
     subkat: payload.subKategori.toString().replace(/\s+/g, " ").trim(),
     pertanyaan: payload.pertanyaan,
     indikator: payload.indikator || "",
-    bobot: payload.bobot || "100|80|60|40|20",
+    bobot: _validateBobot(payload.bobot || "100|80|60|40|20"),
     target: (payload.targetOPD || "").toString().replace(/\s+/g, " ").trim()
   });
 
