@@ -180,6 +180,75 @@ function _aggregateRekapUrusan(laporan) {
 }
 
 /**
+ * Cetak rekap SEMUA urusan ke satu PDF.
+ * PDF dibuat dari Google Doc programatik (bukan template laporan per urusan)
+ * agar tidak ada tag template yang bisa bentrok antar urusan.
+ */
+function buatRekapSemuaUrusanPDF(token) {
+  requireRole(token, ["Admin", "Evaluator"]);
+
+  const props = PropertiesService.getScriptProperties();
+  const folderId = props.getProperty('folder_id');
+  if (!folderId) {
+    throw new Error("ID Folder belum diatur di Pengaturan.");
+  }
+
+  const sharedData = _loadSharedData();
+  const settings = _loadFaktorUmumGlobal();
+  const laporan = _computeLaporanNilai(sharedData.ds, sharedData.dv, settings.faktorUmumGlobal, settings.excludedBonus);
+  const rekap = _aggregateRekapUrusan(laporan);
+  if (!rekap || rekap.length === 0) {
+    throw new Error("Tidak ada data untuk direkap.");
+  }
+
+  const now = new Date();
+  const dateStr = Utilities.formatDate(now, Session.getScriptTimeZone(), "dd-MM-yyyy HH:mm");
+  const docName = `Rekap Hasil Penilaian - ${dateStr}`;
+
+  const doc = DocumentApp.create(docName);
+  const body = doc.getBody();
+  body.clear();
+
+  const title = body.appendParagraph("REKAPITULASI HASIL PENILAIAN");
+  title.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+  title.editAsText().setBold(true).setFontSize(14);
+
+  const sub = body.appendParagraph(`Dicetak: ${dateStr} • Jumlah Urusan: ${rekap.length}`);
+  sub.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+
+  const table = body.appendTable();
+  const headerCells = ["Urusan", "Total Nilai", "Intensitas & Tipe"];
+  const header = table.appendTableRow();
+  headerCells.forEach(function (label, i) {
+    const cell = header.getCell(i);
+    cell.setText(label);
+    cell.setBackgroundColor("#E2E8F0");
+    cell.editAsText().setBold(true);
+  });
+
+  rekap.forEach(function (row) {
+    const tr = table.appendTableRow();
+    tr.getCell(0).setText(row.urusan);
+    tr.getCell(1).setText(Number(row.total_nilai).toFixed(2));
+    tr.getCell(2).setText(row.intensitas + " / " + row.tipe);
+  });
+
+  doc.saveAndClose();
+
+  const folder = DriveApp.getFolderById(folderId);
+  const pdfBlob = DriveApp.getFileById(doc.getId()).getAs('application/pdf');
+  pdfBlob.setName(docName + ".pdf");
+  const pdfFile = folder.createFile(pdfBlob);
+
+  // Doc sementara dibersihkan; kegagalan trash tidak boleh membatalkan PDF.
+  try {
+    DriveApp.getFileById(doc.getId()).setTrashed(true);
+  } catch (e) {}
+
+  return pdfFile.getUrl();
+}
+
+/**
  * Endpoint publik (tanpa login) untuk tombol Informasi Hasil Penilaian di landing.
  * Hasil di-cache singkat agar klik berulang tidak selalu membaca seluruh database.
  */
