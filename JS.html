@@ -1012,6 +1012,10 @@
   
   function lihatOpdLaporan(index) {
     const data = dataLaporan[index];
+    const daftarOpd = Array.isArray(data.opds) ? data.opds : (data.opd ? [data.opd] : []);
+    const opdHtml = daftarOpd.length > 0
+      ? '<ul class="mb-0">' + daftarOpd.map(function (o) { return '<li>' + escHtml(o) + '</li>'; }).join('') + '</ul>'
+      : '<span class="text-muted">-</span>';
     Swal.fire({
       title: 'Informasi Hasil Penilaian',
       html: `
@@ -1025,7 +1029,8 @@
             <li>Wadah: <span class="badge bg-success">${data.tipe}</span></li>
           </ul>
           <hr>
-          <p>Milik OPD:<br><h5 class="text-primary">${escHtml(data.opd)}</h5></p>
+          <p>Diisi oleh OPD:</p>
+          <h5 class="text-primary">${opdHtml}</h5>
         </div>
       `,
       icon: 'info'

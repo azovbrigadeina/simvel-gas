@@ -133,9 +133,9 @@ function _computeJawabanBySubKategori(subKategori, ds, dj, dv) {
     verifMap[v[1] + "||" + v[2].toString()] = v;
   });
 
-  var targetNorm = (subKategori || "").toString().trim().toLowerCase();
+  var targetNorm = _normalizeUrusanName(subKategori).toLowerCase();
   var soalTerkait = ds.filter(function(s) {
-    var sub = s[2] ? s[2].toString().trim().toLowerCase() : "umum";
+    var sub = s[2] ? _normalizeUrusanName(s[2]).toLowerCase() : "umum";
     return sub === targetNorm;
   });
 
@@ -391,7 +391,9 @@ function getStats() {
   const subKatStats = _computeSubKatStats(data.ds, data.dj, data.dv);
   const urusanSudah = subKatStats.filter(s => s.total_jawaban > 0 && s.total_divalidasi >= s.total_jawaban).length;
   
-  const laporan = _computeLaporanNilai(data.ds, data.dv, settings.faktorUmumGlobal, settings.excludedBonus);
+  const laporan = _aggregateLaporanByUrusan(
+    _computeLaporanNilai(data.ds, data.dv, settings.faktorUmumGlobal, settings.excludedBonus)
+  );
   let tipeCounts = { "Tipe A": 0, "Tipe B": 0, "Tipe C": 0, "Lainnya": 0 };
   
   laporan.forEach(d => {
@@ -413,10 +415,68 @@ function getStats() {
   };
 }
 
+function _normalizeUrusanName(value) {
+  return value === undefined || value === null ? "" : value.toString().replace(/\s+/g, " ").trim();
+}
+
+function _aggregateLaporanByUrusan(laporan) {
+  var groups = Object.create(null);
+
+  (laporan || []).forEach(function (row) {
+    if (!row || !row.urusan) return;
+    var display = _normalizeUrusanName(row.urusan);
+    if (!display || display.toLowerCase() === "umum") return;
+
+    var key = display.toLowerCase();
+    var g = groups[key];
+    if (!g) {
+      g = groups[key] = {
+        urusan: display,
+        faktor_umum: parseFloat(row.faktor_umum) || 0,
+        faktor_teknis: 0,
+        bonus_applied: row.bonus_applied !== false,
+        opds: [],
+        seenOpd: Object.create(null)
+      };
+    }
+
+    g.faktor_teknis += parseFloat(row.faktor_teknis) || 0;
+    if (row.bonus_applied === false) g.bonus_applied = false;
+
+    var opd = row.opd ? row.opd.toString() : "";
+    if (opd && !g.seenOpd[opd]) {
+      g.seenOpd[opd] = true;
+      g.opds.push(opd);
+    }
+  });
+
+  var result = [];
+  Object.keys(groups).forEach(function (key) {
+    var g = groups[key];
+    var multiplier = g.bonus_applied ? 1.1 : 1.0;
+    var total = Number(((g.faktor_umum + g.faktor_teknis) * multiplier).toFixed(2));
+    var rating = determineRating(total);
+    result.push({
+      urusan: g.urusan,
+      faktor_umum: g.faktor_umum,
+      faktor_teknis: g.faktor_teknis,
+      total_akhir: total,
+      bonus_applied: g.bonus_applied,
+      intensitas: rating.intensitas,
+      tipe: rating.tipe,
+      opds: g.opds
+    });
+  });
+
+  result.sort(function (a, b) { return b.total_akhir - a.total_akhir; });
+  return result;
+}
+
 function getLaporanNilai() {
   const data = _loadSharedData();
   const settings = _loadFaktorUmumGlobal();
-  return _computeLaporanNilai(data.ds, data.dv, settings.faktorUmumGlobal, settings.excludedBonus);
+  const laporan = _computeLaporanNilai(data.ds, data.dv, settings.faktorUmumGlobal, settings.excludedBonus);
+  return _aggregateLaporanByUrusan(laporan);
 }
 
 function determineRating(score) {

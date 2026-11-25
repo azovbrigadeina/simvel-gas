@@ -13,15 +13,15 @@ function loadContext() {
   return ctx;
 }
 
-test('_aggregateRekapUrusan menggabungkan OPD menjadi satu urusan dengan rata-rata', function () {
+test('_aggregateRekapUrusan menggabungkan OPD menjadi satu urusan dengan menjumlahkan faktor teknis', function () {
   const ctx = loadContext();
   const res = JSON.parse(JSON.stringify(ctx._aggregateRekapUrusan([
-    { urusan: 'Urusan Pemerintahan Bidang Pendidikan', total_akhir: 700, opd: 'A' },
-    { urusan: 'Urusan Pemerintahan Bidang Pendidikan', total_akhir: 800, opd: 'B' },
-    { urusan: 'Urusan Kesehatan', total_akhir: 500, opd: 'C' }
+    { urusan: 'Urusan Pemerintahan Bidang Pendidikan', faktor_umum: 100, faktor_teknis: 300, total_akhir: 400, bonus_applied: false, opd: 'A' },
+    { urusan: 'Urusan Pemerintahan Bidang Pendidikan', faktor_umum: 100, faktor_teknis: 400, total_akhir: 500, bonus_applied: false, opd: 'B' },
+    { urusan: 'Urusan Kesehatan', faktor_umum: 100, faktor_teknis: 400, total_akhir: 500, bonus_applied: false, opd: 'C' }
   ])));
   assert.deepStrictEqual(res, [
-    { urusan: 'Urusan Pemerintahan Bidang Pendidikan', total_nilai: 750, intensitas: 'Sedang', tipe: 'Tipe B' },
+    { urusan: 'Urusan Pemerintahan Bidang Pendidikan', total_nilai: 800, intensitas: 'Sedang', tipe: 'Tipe B' },
     { urusan: 'Urusan Kesehatan', total_nilai: 500, intensitas: 'Kecil', tipe: 'Tipe C' }
   ]);
 });
@@ -29,27 +29,27 @@ test('_aggregateRekapUrusan menggabungkan OPD menjadi satu urusan dengan rata-ra
 test('_aggregateRekapUrusan menggabungkan variasi spasi/huruf dan mengabaikan Umum', function () {
   const ctx = loadContext();
   const res = JSON.parse(JSON.stringify(ctx._aggregateRekapUrusan([
-    { urusan: 'Urusan Kesehatan', total_akhir: 200 },
-    { urusan: '  urusan   kesehatan ', total_akhir: 400 },
-    { urusan: 'Umum', total_akhir: 999 },
-    { urusan: '', total_akhir: 12 }
+    { urusan: 'Urusan Kesehatan', faktor_umum: 100, faktor_teknis: 100, total_akhir: 200, bonus_applied: false },
+    { urusan: '  urusan   kesehatan ', faktor_umum: 100, faktor_teknis: 200, total_akhir: 300, bonus_applied: false },
+    { urusan: 'Umum', faktor_umum: 0, faktor_teknis: 999, total_akhir: 999 },
+    { urusan: '', faktor_umum: 0, faktor_teknis: 12, total_akhir: 12 }
   ])));
   assert.deepStrictEqual(res, [
-    { urusan: 'Urusan Kesehatan', total_nilai: 300, intensitas: 'Sangat Kecil', tipe: 'Seksi/Subbidang' }
+    { urusan: 'Urusan Kesehatan', total_nilai: 400, intensitas: 'Sangat Kecil', tipe: 'Bidang' }
   ]);
 });
 
 test('_aggregateRekapUrusan menangani satu OPD dan lebih dari dua OPD', function () {
   const ctx = loadContext();
   const res = JSON.parse(JSON.stringify(ctx._aggregateRekapUrusan([
-    { urusan: 'Urusan A', total_akhir: 400 },
-    { urusan: 'Urusan B', total_akhir: 100 },
-    { urusan: 'Urusan B', total_akhir: 200 },
-    { urusan: 'Urusan B', total_akhir: 300 }
+    { urusan: 'Urusan A', faktor_umum: 0, faktor_teknis: 400, total_akhir: 400, bonus_applied: false },
+    { urusan: 'Urusan B', faktor_umum: 0, faktor_teknis: 100, total_akhir: 100, bonus_applied: false },
+    { urusan: 'Urusan B', faktor_umum: 0, faktor_teknis: 200, total_akhir: 200, bonus_applied: false },
+    { urusan: 'Urusan B', faktor_umum: 0, faktor_teknis: 300, total_akhir: 300, bonus_applied: false }
   ])));
   assert.deepStrictEqual(res, [
-    { urusan: 'Urusan A', total_nilai: 400, intensitas: 'Sangat Kecil', tipe: 'Bidang' },
-    { urusan: 'Urusan B', total_nilai: 200, intensitas: 'Sangat Kecil', tipe: 'Seksi/Subbidang' }
+    { urusan: 'Urusan B', total_nilai: 600, intensitas: 'Kecil', tipe: 'Tipe C' },
+    { urusan: 'Urusan A', total_nilai: 400, intensitas: 'Sangat Kecil', tipe: 'Bidang' }
   ]);
 });
 
@@ -59,17 +59,17 @@ test('getRekapUrusanPublik memakai data laporan dan hanya mengembalikan 3 kolom 
   ctx._loadFaktorUmumGlobal = function () { return { faktorUmumGlobal: 0, excludedBonus: [] }; };
   ctx._computeLaporanNilai = function () {
     return [
-      { urusan: 'Urusan Pendidikan', total_akhir: 700, faktor_umum: 0, faktor_teknis: 700, bonus_applied: false, opd: 'A' },
-      { urusan: 'Urusan Pendidikan', total_akhir: 800, faktor_umum: 0, faktor_teknis: 800, bonus_applied: false, opd: 'B' }
+      { urusan: 'Urusan Pendidikan', total_akhir: 300, faktor_umum: 0, faktor_teknis: 300, bonus_applied: false, opd: 'A' },
+      { urusan: 'Urusan Pendidikan', total_akhir: 400, faktor_umum: 0, faktor_teknis: 400, bonus_applied: false, opd: 'B' }
     ];
   };
   const res = JSON.parse(JSON.stringify(ctx.getRekapUrusanPublik()));
   assert.deepStrictEqual(res, [
-    { urusan: 'Urusan Pendidikan', total_nilai: 750, intensitas: 'Sedang', tipe: 'Tipe B' }
+    { urusan: 'Urusan Pendidikan', total_nilai: 700, intensitas: 'Sedang', tipe: 'Tipe B' }
   ]);
 });
 
-test('getRekapUrusanPublik menghitung rata-rata per OPD saat nama urusan bervariasi', function () {
+test('getRekapUrusanPublik menghitung total gabungan per OPD saat nama urusan bervariasi', function () {
   const ctx = loadContext();
   const ds = [
     ['1', 'B. FAKTOR TEKNIS', 'Urusan X', 'Pertanyaan 1', '', '', '', '', '', ''],
@@ -86,7 +86,7 @@ test('getRekapUrusanPublik menghitung rata-rata per OPD saat nama urusan bervari
 
   const res = JSON.parse(JSON.stringify(ctx.getRekapUrusanPublik()));
   assert.deepStrictEqual(res, [
-    { urusan: 'Urusan X', total_nilai: 412.5, intensitas: 'Kecil', tipe: 'Tipe C' }
+    { urusan: 'Urusan X', total_nilai: 715, intensitas: 'Sedang', tipe: 'Tipe B' }
   ]);
 });
 

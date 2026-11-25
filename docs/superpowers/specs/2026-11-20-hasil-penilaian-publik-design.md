@@ -10,8 +10,10 @@ serta Intensitas & Tipe.
 - Sumber utama: `getLaporanNilai()` / `_computeLaporanNilai()` di `JawabanController.js`, yang
   menghasilkan satu baris per pasangan OPD–Urusan.
 - Pada laporan per urusan (`buatLaporanUrusan` di `LaporanController.js`), nilai akhir sebuah
-  urusan dihitung dengan **merata-ratakan `total_akhir` seluruh OPD** dalam urusan tersebut,
-  lalu `determineRating(rata-rata)` menentukan Intensitas & Tipe. Logika ini yang akan ditiru.
+  urusan dihitung dengan **menjumlahkan `faktor_teknis` seluruh OPD** dalam urusan tersebut,
+  menambahkan Faktor Umum satu kali, lalu menerapkan multiplier bonus. Ini benar karena butir
+  pertanyaan sebuah urusan dibagi ke beberapa OPD, bukan diulang di setiap OPD. Setelah itu
+  `determineRating(total)` menentukan Intensitas & Tipe.
 - Kategori "Umum"/Faktor Umum sudah dikecualikan oleh `_computeLaporanNilai()` (filter
   sub-kategori `A. FAKTOR` / `B. FAKTOR` / `umum`), sehingga tidak muncul di hasil.
 
@@ -30,8 +32,9 @@ serta Intensitas & Tipe.
 ### Backend
 - Tambah fungsi publik `getRekapUrusanPublik()` di `LaporanController.js`.
 - Fungsi memakai `_loadSharedData()` + `_loadFaktorUmumGlobal()` + `_computeLaporanNilai()`.
-- Kelompokkan hasil per `urusan`; hitung rata-rata `total_akhir` (dibulatkan 2 desimal).
-- `determineRating(rata-rata)` menghasilkan `intensitas` & `tipe`.
+- Kelompokkan hasil per `urusan`; jumlahkan `faktor_teknis` seluruh OPD, tambahkan Faktor Umum
+  sekali, terapkan multiplier, lalu bulatkan 2 desimal.
+- `determineRating(total)` menghasilkan `intensitas` & `tipe`.
 - Kembalikan array `{ urusan, total_nilai, intensitas, tipe }`, diurutkan menurun berdasarkan
   `total_nilai`. Tidak memerlukan token/role.
 
@@ -52,7 +55,7 @@ serta Intensitas & Tipe.
 ## Verification
 1. Panggil `getRekapUrusanPublik()`: pastikan setiap urusan muncul tepat satu kali.
 2. Bandingkan Total Nilai sebuah urusan yang diisi 2 OPD dengan hasil `buatLaporanUrusan`
-   (rata-rata) — harus sama.
+   (gabungan) — harus sama.
 3. Pastikan baris "Umum"/Faktor Umum tidak muncul.
 4. Klik tombol di landing: modal terbuka, tabel 3 kolom tampil, badge Intensitas & Tipe benar.
 5. Uji kondisi data kosong dan kegagalan server.

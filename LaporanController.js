@@ -8,6 +8,17 @@ function _formatSkorEval(ans) {
   return (v === "" || v === null || v === undefined) ? "-" : v.toString();
 }
 
+/**
+ * Mengambil satu baris laporan gabungan untuk urusan tertentu.
+ * Nama urusan dibandingkan setelah spasi dan huruf besar/kecil dinormalkan.
+ */
+function _cariLaporanUrusan(laporan, namaUrusan) {
+  var key = _normalizeUrusanName(namaUrusan).toLowerCase();
+  return _aggregateLaporanByUrusan(laporan).filter(function (row) {
+    return _normalizeUrusanName(row.urusan).toLowerCase() === key;
+  });
+}
+
 function buatLaporanUrusan(token, namaUrusan, format) {
   requireRole(token, ["Admin", "Evaluator"]);
   const props = PropertiesService.getScriptProperties();
@@ -26,7 +37,7 @@ function buatLaporanUrusan(token, namaUrusan, format) {
   const settings = _loadFaktorUmumGlobal();
   
   const laporanFull = _computeLaporanNilai(sharedData.ds, sharedData.dv, settings.faktorUmumGlobal, settings.excludedBonus);
-  const laporanUrusan = laporanFull.filter(l => l.urusan === namaUrusan);
+  const laporanUrusan = _cariLaporanUrusan(laporanFull, namaUrusan);
   
   // Jika tidak ada data
   if (laporanUrusan.length === 0) {
@@ -45,18 +56,11 @@ function buatLaporanUrusan(token, namaUrusan, format) {
   const body = doc.getBody();
   
   // --- HEADER TAGS ---
-  // Kita ambil total akhir rata-rata atau dari OPD pertama?
-  // Karena laporan ditarik per Urusan, tag Header mungkin tidak relevan jika nilainya berbeda per OPD.
-  // Kita akan asumsikan tag header menggunakan data rata-rata atau dibiarkan saja.
-  let avgFU = 0, avgFT = 0, avgTotal = 0;
-  laporanUrusan.forEach(l => {
-    avgFU += l.faktor_umum;
-    avgFT += l.faktor_teknis;
-    avgTotal += l.total_akhir;
-  });
-  avgFU = (avgFU / laporanUrusan.length).toFixed(2);
-  avgFT = (avgFT / laporanUrusan.length).toFixed(2);
-  avgTotal = (avgTotal / laporanUrusan.length).toFixed(2);
+  // Satu urusan = satu baris gabungan seluruh OPD yang mengisi urusan ini.
+  const header = laporanUrusan[0];
+  const avgFU = Number(header.faktor_umum || 0).toFixed(2);
+  const avgFT = Number(header.faktor_teknis || 0).toFixed(2);
+  const avgTotal = Number(header.total_akhir || 0).toFixed(2);
   
   const ratingInfo = determineRating(parseFloat(avgTotal));
   
@@ -160,81 +164,19 @@ function buatLaporanUrusan(token, namaUrusan, format) {
 
 /**
  * Agregasi laporan per urusan.
- * Satu urusan = satu baris. Bila satu OPD menghasilkan beberapa baris karena
- * variasi penulisan nama urusan, baris-baris itu digabung menjadi SATU
- * kontribusi OPD (Faktor Umum dihitung sekali, Faktor Teknis dijumlahkan),
- * lalu Total Nilai urusan = rata-rata kontribusi seluruh OPD. Untuk nama
- * urusan yang seragam, hasilnya sama dengan perhitungan buatLaporanUrusan.
+ * Satu urusan = satu baris. Bila urusan diisi lebih dari satu OPD, skor teknis
+ * seluruh OPD dijumlahkan dan Faktor Umum hanya dihitung sekali, sehingga
+ * nilai urusan mencerminkan gabungan seluruh butir pada urusan tersebut.
  */
 function _aggregateRekapUrusan(laporan) {
-  var groups = Object.create(null);
-  var rowSeq = 0;
-
-  (laporan || []).forEach(function (row) {
-    if (!row || !row.urusan) return;
-    var display = row.urusan.toString().replace(/\s+/g, " ").trim();
-    if (!display || display.toLowerCase() === "umum") return;
-
-    var urusanKey = display.toLowerCase();
-    if (!groups[urusanKey]) {
-      groups[urusanKey] = { urusan: display, opds: Object.create(null) };
-    }
-
-    var opdKey = row.opd ? row.opd.toString() : ("__row_" + (rowSeq++));
-    var opd = groups[urusanKey].opds[opdKey];
-    if (!opd) {
-      opd = { total: 0, hasTotal: false, extraTeknis: 0, multiplier: 1.0, hasBreakdown: false };
-      groups[urusanKey].opds[opdKey] = opd;
-    }
-
-    var hasBreakdown = row.faktor_umum !== undefined && row.faktor_teknis !== undefined;
-    if (!hasBreakdown) {
-      opd.total += parseFloat(row.total_akhir) || 0;
-      opd.hasTotal = true;
-      return;
-    }
-
-    opd.hasBreakdown = true;
-    if (!opd.hasTotal) {
-      // Baris pertama OPD ini: pakai total_akhir apa adanya agar identik
-      // dengan buatLaporanUrusan ketika nama urusan seragam.
-      opd.total = parseFloat(row.total_akhir) || 0;
-      opd.multiplier = row.bonus_applied === false ? 1.0 : 1.1;
-      opd.hasTotal = true;
-    } else {
-      // Baris varian berikutnya: tambahkan kontribusi teknisnya saja,
-      // tanpa menghitung ulang Faktor Umum.
-      opd.extraTeknis += parseFloat(row.faktor_teknis) || 0;
-    }
+  return _aggregateLaporanByUrusan(laporan).map(function (row) {
+    return {
+      urusan: row.urusan,
+      total_nilai: row.total_akhir,
+      intensitas: row.intensitas,
+      tipe: row.tipe
+    };
   });
-
-  var result = [];
-  Object.keys(groups).forEach(function (urusanKey) {
-    var g = groups[urusanKey];
-    var opdKeys = Object.keys(g.opds);
-    var sumTotal = 0;
-
-    opdKeys.forEach(function (opdKey) {
-      var opd = g.opds[opdKey];
-      if (opd.hasBreakdown) {
-        sumTotal += opd.total + (opd.extraTeknis * opd.multiplier);
-      } else {
-        sumTotal += opd.total;
-      }
-    });
-
-    var avg = opdKeys.length > 0 ? Number((sumTotal / opdKeys.length).toFixed(2)) : 0;
-    var rating = determineRating(avg);
-    result.push({
-      urusan: g.urusan,
-      total_nilai: avg,
-      intensitas: rating.intensitas,
-      tipe: rating.tipe
-    });
-  });
-
-  result.sort(function (a, b) { return b.total_nilai - a.total_nilai; });
-  return result;
 }
 
 /**
@@ -242,7 +184,7 @@ function _aggregateRekapUrusan(laporan) {
  * Hasil di-cache singkat agar klik berulang tidak selalu membaca seluruh database.
  */
 function getRekapUrusanPublik() {
-  var cacheKey = 'simvel_rekap_urusan_publik_v1';
+  var cacheKey = 'simvel_rekap_urusan_publik_v2';
   var cache = null;
   try {
     cache = CacheService.getScriptCache();
