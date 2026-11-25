@@ -464,6 +464,29 @@
   }
 
   /* ========================================================
+     LAPORAN PENILAIAN — TABEL REKAP
+     ======================================================== */
+  .lap-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  .lap-col-no { width: 52px; white-space: nowrap; }
+  .lap-col-urusan { min-width: 320px; white-space: normal; text-align: left; line-height: 1.35; }
+  .lap-col-opd { width: 70px; white-space: nowrap; }
+  .lap-col-num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .lap-col-total { text-align: right; white-space: nowrap; }
+  .lap-total-value { font-size: 1.05rem; font-weight: 700; color: var(--p); font-variant-numeric: tabular-nums; }
+  .lap-bonus { margin-left: .35rem; font-size: .68rem; }
+  .lap-col-tipe { min-width: 150px; white-space: nowrap; }
+  .lap-tipe-intensitas { font-weight: 600; font-size: .82rem; margin-bottom: .15rem; }
+  .lap-col-aksi { width: 96px; }
+  .lap-aksi { display: flex; gap: .35rem; justify-content: center; }
+  .lap-aksi .btn { padding: .3rem .5rem; }
+  .lap-empty { padding: 2rem 1rem; text-align: center; color: var(--text-muted); }
+  .lap-table tbody tr:nth-child(even) { background-color: #FBFDFF; }
+
+  /* ========================================================
      MODERN BUTTONS & INPUTS
      ======================================================== */
   .btn-modern {

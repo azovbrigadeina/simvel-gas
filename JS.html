@@ -973,35 +973,58 @@
       dataLaporan = res;
       
       let headHtml = `<tr>
-        <th>Urusan</th>
-        <th>Nilai Faktor Umum</th>
-        <th>Nilai Faktor Teknis</th>
-        <th class="bg-primary text-white">TOTAL NILAI</th>
-        <th>Intensitas & Tipe</th>
-        <th>Aksi</th>
+        <th class="lap-col-no">No</th>
+        <th class="lap-col-urusan">Urusan</th>
+        <th class="lap-col-opd">OPD</th>
+        <th class="lap-col-num">Faktor Umum</th>
+        <th class="lap-col-num">Faktor Teknis</th>
+        <th class="lap-col-total">Total Nilai</th>
+        <th class="lap-col-tipe">Intensitas & Tipe</th>
+        <th class="lap-col-aksi">Aksi</th>
       </tr>`;
       document.getElementById('t-lap-head').innerHTML = headHtml;
-      
+
+      if (!res || res.length === 0) {
+        document.getElementById('t-lap-body').innerHTML =
+          '<tr><td colspan="8" class="lap-empty">Belum ada data penilaian.</td></tr>';
+        return;
+      }
+
       let bodyHtml = '';
       res.forEach((d, index) => {
-        let bonusBadge = d.bonus_applied ? '<br><span class="badge bg-warning text-dark mt-1" style="font-size: 0.7rem;"><i class="bi bi-stars"></i> Bonus 1.1x Applied</span>' : '';
-        
-        let typeColor = d.tipe.includes("Tipe A") ? "bg-danger" : 
-                        d.tipe.includes("Tipe B") ? "bg-primary" : 
+        const daftarOpd = Array.isArray(d.opds) ? d.opds : (d.opd ? [d.opd] : []);
+        let bonusBadge = d.bonus_applied ? '<span class="badge bg-warning text-dark lap-bonus"><i class="bi bi-stars"></i> Bonus 1.1x</span>' : '';
+
+        let typeColor = d.tipe.includes("Tipe A") ? "bg-danger" :
+                        d.tipe.includes("Tipe B") ? "bg-primary" :
                         d.tipe.includes("Tipe C") ? "bg-info text-dark" : "bg-secondary";
 
         bodyHtml += `<tr>
-          <td class="text-start fw-bold">${escHtml(d.urusan)}</td>
-          <td>${d.faktor_umum}</td>
-          <td>${d.faktor_teknis}</td>
-          <td class="fw-bold fs-5 text-primary">${Number(d.total_akhir).toFixed(2)}${bonusBadge}</td>
-          <td>
-            <div class="fw-bold">${d.intensitas}</div>
-            <span class="badge ${typeColor}">${d.tipe}</span>
+          <td class="lap-col-no">${index + 1}</td>
+          <td class="lap-col-urusan fw-semibold">${escHtml(d.urusan)}</td>
+          <td class="lap-col-opd">
+            <span class="badge bg-light text-dark border" title="${escAttr(daftarOpd.join(', '))}">
+              <i class="bi bi-building"></i> ${daftarOpd.length}
+            </span>
           </td>
-          <td>
-            <button class="btn btn-sm btn-outline-info mb-1 w-100" onclick="lihatOpdLaporan(${index})"><i class="bi bi-eye"></i> Lihat OPD</button>
-            <button class="btn btn-sm btn-primary w-100" onclick="pilihFormatCetak('${escJsAttr(d.urusan)}')"><i class="bi bi-printer"></i> Cetak</button>
+          <td class="lap-col-num">${d.faktor_umum}</td>
+          <td class="lap-col-num">${d.faktor_teknis}</td>
+          <td class="lap-col-total">
+            <span class="lap-total-value">${Number(d.total_akhir).toFixed(2)}</span>${bonusBadge}
+          </td>
+          <td class="lap-col-tipe">
+            <div class="lap-tipe-intensitas">${escHtml(d.intensitas)}</div>
+            <span class="badge ${typeColor}">${escHtml(d.tipe)}</span>
+          </td>
+          <td class="lap-col-aksi">
+            <div class="lap-aksi">
+              <button class="btn btn-sm btn-outline-info" onclick="lihatOpdLaporan(${index})" title="Lihat OPD pengisi">
+                <i class="bi bi-eye"></i>
+              </button>
+              <button class="btn btn-sm btn-primary" onclick="pilihFormatCetak('${escJsAttr(d.urusan)}')" title="Cetak laporan urusan">
+                <i class="bi bi-printer"></i>
+              </button>
+            </div>
           </td>
         </tr>`;
       });
