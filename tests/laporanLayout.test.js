@@ -41,3 +41,29 @@ test('sel total menumpuk angka dan badge bonus secara center', function () {
   assert.match(js, /lap-total-cell/);
   assert.match(js, /<span class="lap-total-value">[\s\S]{0,120}<\/span>\$\{bonusBadge\}/);
 });
+
+test('baris laporan diberi color scale 5 tingkat sesuai intensitas/tipe', function () {
+  assert.match(js, /lap-tier-\$\{/);
+  assert.match(js, /function lapTier\(/);
+  assert.match(js, /<= 300/);
+  assert.match(js, /<= 400/);
+  assert.match(js, /<= 600/);
+  assert.match(js, /<= 800/);
+  [cssModern, cssClassic].forEach(function (css) {
+    for (let i = 1; i <= 5; i++) {
+      assert.match(css, new RegExp('\\.lap-tier-' + i + ' td\\s*\\{[^}]*background-color'));
+      assert.match(css, new RegExp('\\.lap-tier-' + i + ' td:first-child'));
+    }
+  });
+});
+
+test('badge intensitas/tipe memakai warna tier dan ada legenda color scale', function () {
+  assert.match(js, /lap-badge-\$\{/);
+  [cssModern, cssClassic].forEach(function (css) {
+    assert.match(css, /\.lap-badge-1/);
+    assert.match(css, /\.lap-legend-bar/);
+  });
+  [modern, classic].forEach(function (html) {
+    assert.match(html, /lap-legend/);
+  });
+});

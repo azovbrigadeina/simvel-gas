@@ -318,6 +318,27 @@
   .lap-table tbody tr:nth-child(even) { background-color: #FBFDFF; }
 
   /* ========================================================
+     LAPORAN PENILAIAN — COLOR SCALE INTENSITAS/TIPE
+     ======================================================== */
+  .lap-table tbody tr.lap-tier-1 td { background-color: #F0FDF4; }
+  .lap-table tbody tr.lap-tier-2 td { background-color: #F0FDFA; }
+  .lap-table tbody tr.lap-tier-3 td { background-color: #FEFCE8; }
+  .lap-table tbody tr.lap-tier-4 td { background-color: #FFF7ED; }
+  .lap-table tbody tr.lap-tier-5 td { background-color: #FEF2F2; }
+  .lap-table tbody tr.lap-tier-1 td:first-child { box-shadow: inset 3px 0 0 #16A34A; }
+  .lap-table tbody tr.lap-tier-2 td:first-child { box-shadow: inset 3px 0 0 #0D9488; }
+  .lap-table tbody tr.lap-tier-3 td:first-child { box-shadow: inset 3px 0 0 #D97706; }
+  .lap-table tbody tr.lap-tier-4 td:first-child { box-shadow: inset 3px 0 0 #EA580C; }
+  .lap-table tbody tr.lap-tier-5 td:first-child { box-shadow: inset 3px 0 0 #DC2626; }
+  .lap-badge-1 { background: #16A34A; color: #fff; }
+  .lap-badge-2 { background: #0D9488; color: #fff; }
+  .lap-badge-3 { background: #D97706; color: #fff; }
+  .lap-badge-4 { background: #EA580C; color: #fff; }
+  .lap-badge-5 { background: #DC2626; color: #fff; }
+  .lap-legend { display: flex; align-items: center; gap: .5rem; margin-bottom: .75rem; font-size: .8rem; color: #64748B; }
+  .lap-legend-bar { display: inline-block; width: 140px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, #16A34A, #0D9488, #D97706, #EA580C, #DC2626); }
+
+  /* ========================================================
      TOMBOL CETAK REKAP — HIGHLIGHT + GLOW
      ======================================================== */
   .btn-cetak-rekap {
