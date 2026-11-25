@@ -213,30 +213,55 @@ function buatRekapSemuaUrusanPDF(token) {
     body.clear();
     body.setPageWidth(595);   // A4 210mm
     body.setPageHeight(842);  // A4 297mm
+    body.setMarginTop(46);
+    body.setMarginBottom(46);
+    body.setMarginLeft(45);
+    body.setMarginRight(45);
 
     const title = body.appendParagraph("REKAPITULASI HASIL PENILAIAN");
     title.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
-    title.editAsText().setBold(true).setFontSize(14);
+    title.editAsText().setBold(true).setFontSize(15);
 
     const sub = body.appendParagraph(`Dicetak: ${dateStr} • Jumlah Urusan: ${rekap.length}`);
     sub.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+    sub.editAsText().setFontSize(10);
+
+    // Lebar kolom (points) agar tabel muat rapi di A4: Urusan lebar,
+    // angka & intensitas/tipe tetap dan center.
+    const colWidths = [285, 90, 130];
+    const centerCols = [1, 2];
 
     // appendTableRow() membuat baris TANPA sel; sel harus ditambahkan
     // lewat appendTableCell(). getCell(i) akan null bila sel belum ada.
     const table = body.appendTable();
     const headerCells = ["Urusan", "Total Nilai", "Intensitas & Tipe"];
     const header = table.appendTableRow();
-    headerCells.forEach(function (label) {
+    headerCells.forEach(function (label, i) {
       const cell = header.appendTableCell(label);
+      cell.setWidth(colWidths[i]);
       cell.setBackgroundColor("#E2E8F0");
-      cell.editAsText().setBold(true);
+      cell.editAsText().setBold(true).setFontSize(10);
+      if (centerCols.indexOf(i) !== -1) {
+        const p = cell.getChild(0);
+        if (p && p.setAlignment) p.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+      }
     });
 
     rekap.forEach(function (row) {
       const tr = table.appendTableRow();
-      tr.appendTableCell(row.urusan);
-      tr.appendTableCell(Number(row.total_nilai).toFixed(2));
-      tr.appendTableCell(row.intensitas + " / " + row.tipe);
+      const cells = [
+        tr.appendTableCell(row.urusan),
+        tr.appendTableCell(Number(row.total_nilai).toFixed(2)),
+        tr.appendTableCell(row.intensitas + " / " + row.tipe)
+      ];
+      cells.forEach(function (cell, i) {
+        cell.setWidth(colWidths[i]);
+        cell.editAsText().setFontSize(10);
+        if (centerCols.indexOf(i) !== -1) {
+          const p = cell.getChild(0);
+          if (p && p.setAlignment) p.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+        }
+      });
     });
 
     doc.saveAndClose();

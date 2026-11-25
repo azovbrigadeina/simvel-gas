@@ -672,22 +672,24 @@
 
         var body = '';
         rows.forEach(function (d) {
-          var typeColor = d.tipe.indexOf('Tipe A') !== -1 ? 'bg-danger' :
-                          d.tipe.indexOf('Tipe B') !== -1 ? 'bg-primary' :
-                          d.tipe.indexOf('Tipe C') !== -1 ? 'bg-info text-dark' : 'bg-secondary';
-          body += '<tr>' +
+          var tier = lapTier(d);
+          body += '<tr class="lap-tier-' + tier + '">' +
             '<td class="text-start fw-semibold">' + escHtml(d.urusan) + '</td>' +
             '<td class="fw-bold text-primary">' + Number(d.total_nilai).toFixed(2) + '</td>' +
             '<td><div class="fw-bold">' + escHtml(d.intensitas) + '</div>' +
-            '<span class="badge ' + typeColor + '">' + escHtml(d.tipe) + '</span></td>' +
+            '<span class="badge lap-badge-' + tier + '">' + escHtml(d.tipe) + '</span></td>' +
             '</tr>';
         });
 
         Swal.fire({
           title: 'Hasil Penilaian',
           width: '760px',
-          html: '<div class="table-responsive" style="max-height: 60vh; overflow: auto;">' +
-            '<table class="table table-sm table-bordered table-hover align-middle text-center mb-0" style="font-size: 0.9rem;">' +
+          html: '<div class="lap-legend justify-content-center">' +
+            '<span class="lap-legend-bar"></span>' +
+            '<span>Skala Intensitas: Sangat Kecil &rarr; Besar</span>' +
+            '</div>' +
+            '<div class="table-responsive" style="max-height: 60vh; overflow: auto;">' +
+            '<table class="table table-sm table-bordered table-hover align-middle text-center mb-0 lap-table" style="font-size: 0.9rem;">' +
             '<thead><tr><th>Urusan</th><th>Total Nilai</th><th>Intensitas &amp; Tipe</th></tr></thead>' +
             '<tbody>' + body + '</tbody>' +
             '</table></div>',

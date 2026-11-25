@@ -13,6 +13,10 @@ function fakeDocApp(state) {
         clear: function () {},
         setPageWidth: function (w) { state.pageWidth = w; },
         setPageHeight: function (h) { state.pageHeight = h; },
+        setMarginTop: function (v) { state.marginTop = v; },
+        setMarginBottom: function (v) { state.marginBottom = v; },
+        setMarginLeft: function (v) { state.marginLeft = v; },
+        setMarginRight: function (v) { state.marginRight = v; },
         appendParagraph: function (text) {
           state.paragraphs.push(text);
           return {
@@ -33,13 +37,23 @@ function fakeDocApp(state) {
               const row = {
                 cells: [],
                 appendTableCell: function (content) {
+                  const para = {
+                    alignment: null,
+                    setAlignment: function (a) { para.alignment = a; return this; }
+                  };
                   const cell = {
                     text: content,
+                    para: para,
                     setText: function (t) { this.text = t; return this; },
+                    setWidth: function (w) { this.width = w; return this; },
                     setBackgroundColor: function (c) { this.bg = c; return this; },
+                    getChild: function () { return para; },
                     editAsText: function () {
                       const self = this;
-                      return { setBold: function (b) { self.bold = b; return this; } };
+                      return {
+                        setBold: function (b) { self.bold = b; return this; },
+                        setFontSize: function (s) { self.fontSize = s; return this; }
+                      };
                     }
                   };
                   row.cells.push(cell);
@@ -162,6 +176,38 @@ test('buatRekapSemuaUrusanPDF memakai ukuran kertas A4', function () {
 
   assert.strictEqual(state.pageWidth, 595);
   assert.strictEqual(state.pageHeight, 842);
+  assert.strictEqual(state.marginTop, 46);
+  assert.strictEqual(state.marginBottom, 46);
+  assert.strictEqual(state.marginLeft, 45);
+  assert.strictEqual(state.marginRight, 45);
+});
+
+test('tabel rekap memakai lebar kolom, header tebal, dan angka center', function () {
+  const state = { paragraphs: [], rows: [] };
+  const ctx = loadContext(state);
+  stubRekap(ctx);
+
+  ctx.buatRekapSemuaUrusanPDF('tok');
+
+  const expectedWidths = JSON.stringify([285, 90, 130]);
+  const header = state.rows[0];
+  assert.strictEqual(JSON.stringify(header.cells.map(function (c) { return c.width; })), expectedWidths);
+  header.cells.forEach(function (c) {
+    assert.strictEqual(c.bg, '#E2E8F0');
+    assert.strictEqual(c.bold, true);
+    assert.strictEqual(c.fontSize, 10);
+  });
+  assert.strictEqual(header.cells[0].para.alignment, null);
+  assert.strictEqual(header.cells[1].para.alignment, 'center');
+  assert.strictEqual(header.cells[2].para.alignment, 'center');
+
+  state.rows.slice(1).forEach(function (row) {
+    assert.strictEqual(JSON.stringify(row.cells.map(function (c) { return c.width; })), expectedWidths);
+    row.cells.forEach(function (c) { assert.strictEqual(c.fontSize, 10); });
+    assert.strictEqual(row.cells[0].para.alignment, null);
+    assert.strictEqual(row.cells[1].para.alignment, 'center');
+    assert.strictEqual(row.cells[2].para.alignment, 'center');
+  });
 });
 
 test('buatRekapSemuaUrusanPDF menolak saat tidak ada data', function () {
