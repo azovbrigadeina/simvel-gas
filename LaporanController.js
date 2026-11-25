@@ -206,46 +206,51 @@ function buatRekapSemuaUrusanPDF(token) {
   const docName = `Rekap Hasil Penilaian - ${dateStr}`;
 
   const doc = DocumentApp.create(docName);
-  const body = doc.getBody();
-  body.clear();
+  const docId = doc.getId();
 
-  const title = body.appendParagraph("REKAPITULASI HASIL PENILAIAN");
-  title.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
-  title.editAsText().setBold(true).setFontSize(14);
-
-  const sub = body.appendParagraph(`Dicetak: ${dateStr} • Jumlah Urusan: ${rekap.length}`);
-  sub.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
-
-  const table = body.appendTable();
-  const headerCells = ["Urusan", "Total Nilai", "Intensitas & Tipe"];
-  const header = table.appendTableRow();
-  headerCells.forEach(function (label, i) {
-    const cell = header.getCell(i);
-    cell.setText(label);
-    cell.setBackgroundColor("#E2E8F0");
-    cell.editAsText().setBold(true);
-  });
-
-  rekap.forEach(function (row) {
-    const tr = table.appendTableRow();
-    tr.getCell(0).setText(row.urusan);
-    tr.getCell(1).setText(Number(row.total_nilai).toFixed(2));
-    tr.getCell(2).setText(row.intensitas + " / " + row.tipe);
-  });
-
-  doc.saveAndClose();
-
-  const folder = DriveApp.getFolderById(folderId);
-  const pdfBlob = DriveApp.getFileById(doc.getId()).getAs('application/pdf');
-  pdfBlob.setName(docName + ".pdf");
-  const pdfFile = folder.createFile(pdfBlob);
-
-  // Doc sementara dibersihkan; kegagalan trash tidak boleh membatalkan PDF.
   try {
-    DriveApp.getFileById(doc.getId()).setTrashed(true);
-  } catch (e) {}
+    const body = doc.getBody();
+    body.clear();
+    body.setPageWidth(595);   // A4 210mm
+    body.setPageHeight(842);  // A4 297mm
 
-  return pdfFile.getUrl();
+    const title = body.appendParagraph("REKAPITULASI HASIL PENILAIAN");
+    title.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+    title.editAsText().setBold(true).setFontSize(14);
+
+    const sub = body.appendParagraph(`Dicetak: ${dateStr} • Jumlah Urusan: ${rekap.length}`);
+    sub.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+
+    // appendTableRow() membuat baris TANPA sel; sel harus ditambahkan
+    // lewat appendTableCell(). getCell(i) akan null bila sel belum ada.
+    const table = body.appendTable();
+    const headerCells = ["Urusan", "Total Nilai", "Intensitas & Tipe"];
+    const header = table.appendTableRow();
+    headerCells.forEach(function (label) {
+      const cell = header.appendTableCell(label);
+      cell.setBackgroundColor("#E2E8F0");
+      cell.editAsText().setBold(true);
+    });
+
+    rekap.forEach(function (row) {
+      const tr = table.appendTableRow();
+      tr.appendTableCell(row.urusan);
+      tr.appendTableCell(Number(row.total_nilai).toFixed(2));
+      tr.appendTableCell(row.intensitas + " / " + row.tipe);
+    });
+
+    doc.saveAndClose();
+
+    const pdfBlob = DriveApp.getFileById(docId).getAs('application/pdf');
+    pdfBlob.setName(docName + ".pdf");
+    return DriveApp.getFolderById(folderId).createFile(pdfBlob).getUrl();
+  } finally {
+    // Doc sementara selalu dibersihkan; kegagalan trash tidak boleh
+    // membatalkan PDF yang sudah dibuat.
+    try {
+      DriveApp.getFileById(docId).setTrashed(true);
+    } catch (e) {}
+  }
 }
 
 /**

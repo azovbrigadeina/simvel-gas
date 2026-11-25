@@ -1097,6 +1097,11 @@
 
   // Cetak rekap SEMUA urusan dalam satu PDF
   function cetakRekapSemuaUrusan() {
+    if (!Array.isArray(dataLaporan) || dataLaporan.length === 0) {
+      Swal.fire('Belum Ada Data', 'Belum ada penilaian yang bisa direkap.', 'info');
+      return;
+    }
+
     Swal.fire({
       title: 'Menyiapkan PDF...',
       text: 'Sistem sedang membuat rekap seluruh urusan. Mohon tunggu.',

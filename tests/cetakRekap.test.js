@@ -24,6 +24,13 @@ test('handler memanggil endpoint PDF dan membuka URL', function () {
   assert.match(js, /window\.open\(url/);
 });
 
+test('handler menampilkan pesan ramah saat belum ada data', function () {
+  assert.match(js, /Belum ada penilaian yang bisa direkap/);
+  const guard = js.indexOf('Belum ada penilaian yang bisa direkap');
+  const call = js.indexOf('.buatRekapSemuaUrusanPDF(');
+  assert.ok(guard !== -1 && call !== -1 && guard < call);
+});
+
 test('tombol punya glow dan menghormati prefers-reduced-motion', function () {
   [cssModern, cssClassic].forEach(function (css) {
     assert.match(css, /\.btn-cetak-rekap/);

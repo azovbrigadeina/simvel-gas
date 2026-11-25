@@ -315,6 +315,9 @@
   .lap-aksi .btn { padding: .3rem .5rem; }
   .lap-empty { padding: 2rem 1rem; text-align: center; color: #64748B; }
   .lap-table tbody tr:nth-child(even) { background-color: #FBFDFF; }
+  /* Kontainer scroll sendiri agar <thead> sticky benar-benar menempel.
+     Tanpa tinggi tetap, .table-responsive tidak pernah scroll vertikal. */
+  .lap-scroll { max-height: 70vh; overflow-y: auto; }
 
   /* ========================================================
      TOMBOL CETAK REKAP — HIGHLIGHT + GLOW

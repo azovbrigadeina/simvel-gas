@@ -7,6 +7,8 @@ const root = path.join(__dirname, '..');
 const js = fs.readFileSync(path.join(root, 'JS.html'), 'utf8');
 const cssModern = fs.readFileSync(path.join(root, 'CSS_Modern.html'), 'utf8');
 const cssClassic = fs.readFileSync(path.join(root, 'CSS.html'), 'utf8');
+const modern = fs.readFileSync(path.join(root, 'View_Evaluator_Modern.html'), 'utf8');
+const classic = fs.readFileSync(path.join(root, 'View_Evaluator.html'), 'utf8');
 
 test('tabel laporan memakai kolom No dan OPD serta kelas layout', function () {
   assert.match(js, /lap-col-urusan/);
@@ -29,5 +31,12 @@ test('CSS modern dan classic memuat layout tabel laporan dengan header sticky', 
     assert.match(css, /\.lap-table/);
     assert.match(css, /\.lap-col-urusan/);
     assert.match(css, /position:\s*sticky/);
+    assert.match(css, /\.lap-scroll[\s\S]{0,120}max-height/);
+  });
+});
+
+test('tabel laporan memakai kontainer scroll agar header sticky bekerja', function () {
+  [modern, classic].forEach(function (html) {
+    assert.match(html, /lap-scroll/);
   });
 });
