@@ -119,7 +119,12 @@
   </div>
 
   <div id="v-laporan" class="hidden">
-    <h4 class="fw-bold mb-4">Laporan Penilaian</h4>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+      <h4 class="fw-bold m-0">Laporan Penilaian</h4>
+      <button class="btn btn-danger fw-bold btn-cetak-rekap" onclick="cetakRekapSemuaUrusan()">
+        <i class="bi bi-file-earmark-pdf-fill me-1"></i> Cetak Rekap
+      </button>
+    </div>
     <div class="table-responsive bg-white p-3 rounded shadow-sm">
       <table class="table table-sm table-bordered align-middle text-center table-hover lap-table">
         <thead class="table-light" id="t-lap-head"></thead>

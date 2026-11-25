@@ -19,6 +19,11 @@ test('tabel laporan punya pesan saat data kosong', function () {
   assert.match(js, /Belum ada data penilaian/);
 });
 
+test('kolom OPD memakai jumlah OPD pengisi urusan', function () {
+  assert.match(js, /daftarOpd\.length/);
+  assert.match(js, /Array\.isArray\(d\.opds\)/);
+});
+
 test('CSS modern dan classic memuat layout tabel laporan dengan header sticky', function () {
   [cssModern, cssClassic].forEach(function (css) {
     assert.match(css, /\.lap-table/);

@@ -1095,6 +1095,21 @@
     }).buatLaporanUrusan(sess.token, urusan, format);
   }
 
+  // Cetak rekap SEMUA urusan dalam satu PDF
+  function cetakRekapSemuaUrusan() {
+    Swal.fire({
+      title: 'Menyiapkan PDF...',
+      text: 'Sistem sedang membuat rekap seluruh urusan. Mohon tunggu.',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+
+    serverCall().withSuccessHandler(url => {
+      Swal.close();
+      window.open(url, '_blank');
+    }).buatRekapSemuaUrusanPDF(sess.token);
+  }
+
   // Reset Data Script
   function loadResetMenu() {
     Swal.showLoading();

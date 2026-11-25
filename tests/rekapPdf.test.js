@@ -140,3 +140,23 @@ test('buatRekapSemuaUrusanPDF menolak saat folder_id belum diatur', function () 
 
   assert.throws(function () { ctx.buatRekapSemuaUrusanPDF('tok'); }, /ID Folder belum diatur/);
 });
+
+test('buatRekapSemuaUrusanPDF tetap mengembalikan URL saat gagal menghapus doc sementara', function () {
+  const state = { paragraphs: [], rows: [] };
+  const ctx = loadContext(state);
+  ctx._loadSharedData = function () { return { ds: [], dj: [], dv: [] }; };
+  ctx._loadFaktorUmumGlobal = function () { return { faktorUmumGlobal: 0, excludedBonus: [] }; };
+  ctx._computeLaporanNilai = function () { return []; };
+  ctx._aggregateRekapUrusan = function () {
+    return [{ urusan: 'Urusan X', total_nilai: 100, intensitas: 'Sangat Kecil', tipe: 'Bidang' }];
+  };
+  ctx.DriveApp.getFileById = function () {
+    return {
+      getAs: function () { return { setName: function () { return this; } }; },
+      setTrashed: function () { throw new Error('trash gagal'); }
+    };
+  };
+
+  const url = ctx.buatRekapSemuaUrusanPDF('tok');
+  assert.strictEqual(url, 'https://drive.google.com/file/d/PDF123/view');
+});
