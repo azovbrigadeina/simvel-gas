@@ -26,17 +26,18 @@ test('kolom OPD memakai jumlah OPD pengisi urusan', function () {
   assert.match(js, /Array\.isArray\(d\.opds\)/);
 });
 
-test('CSS modern dan classic memuat layout tabel laporan dengan header sticky', function () {
+test('CSS modern dan classic: angka center, total & bonus center, tanpa scroll internal', function () {
   [cssModern, cssClassic].forEach(function (css) {
     assert.match(css, /\.lap-table/);
     assert.match(css, /\.lap-col-urusan/);
-    assert.match(css, /position:\s*sticky/);
-    assert.match(css, /\.lap-scroll[\s\S]{0,120}max-height/);
+    assert.match(css, /\.lap-col-num\s*\{[^}]*text-align:\s*center/);
+    assert.match(css, /\.lap-col-total\s*\{[^}]*text-align:\s*center/);
+    assert.match(css, /\.lap-total-cell\s*\{[^}]*flex-direction:\s*column[^}]*align-items:\s*center/);
+    assert.doesNotMatch(css, /\.lap-scroll\s*\{[^}]*max-height/);
   });
 });
 
-test('tabel laporan memakai kontainer scroll agar header sticky bekerja', function () {
-  [modern, classic].forEach(function (html) {
-    assert.match(html, /lap-scroll/);
-  });
+test('sel total menumpuk angka dan badge bonus secara center', function () {
+  assert.match(js, /lap-total-cell/);
+  assert.match(js, /<span class="lap-total-value">[\s\S]{0,120}<\/span>\$\{bonusBadge\}/);
 });

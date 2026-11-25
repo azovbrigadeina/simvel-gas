@@ -1010,7 +1010,9 @@
           <td class="lap-col-num">${d.faktor_umum}</td>
           <td class="lap-col-num">${d.faktor_teknis}</td>
           <td class="lap-col-total">
-            <span class="lap-total-value">${Number(d.total_akhir).toFixed(2)}</span>${bonusBadge}
+            <div class="lap-total-cell">
+              <span class="lap-total-value">${Number(d.total_akhir).toFixed(2)}</span>${bonusBadge}
+            </div>
           </td>
           <td class="lap-col-tipe">
             <div class="lap-tipe-intensitas">${escHtml(d.intensitas)}</div>
